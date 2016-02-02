@@ -1,0 +1,6 @@
+import(BiocGenerics)
+import(S4Vectors)
+import(IRanges)
+import(GenomicRanges)
+
+## importFrom() others as needed
