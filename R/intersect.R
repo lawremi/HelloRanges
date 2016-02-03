@@ -27,14 +27,18 @@ normB <- function(b) {
         else bi
     }
     if (length(b) == 1L)
-        normToken(b)
+        normBToken(b)
     else as.call(c(quote(c), lapply(p, normBToken)))
+}
+
+isBam <- function(x) {
+    (is.character(x) && file_ext(x) == "bam") || is(x, "BamFile")
 }
 
 R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
                                  wa=FALSE, wb=FALSE, loj=FALSE, wo=FALSE,
                                  wao=FALSE, u=FALSE, c=FALSE, v=FALSE,
-                                 f=1e-9, F=FALSE, r=FALSE, e=FALSE, s=FALSE,
+                                 f=1e-9, F=1e-9, r=FALSE, e=FALSE, s=FALSE,
                                  S=FALSE, split=FALSE, g=FALSE, header=FALSE,
                                  names=as.character(seq_along(b)),
                                  filenames=FALSE, sortout=FALSE)
@@ -52,7 +56,7 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
               isTRUEorFALSE(c),
               isTRUEorFALSE(v),
               isSingleNumber(f),
-              isTRUEorFALSE(F),
+              isSingleNumber(F),
               isTRUEorFALSE(r),
               isTRUEorFALSE(e),
               isTRUEorFALSE(s),
@@ -86,68 +90,80 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
 
     if (bed) {
         ### FIXME: cannot access gr_a or gr_b!!!
-        if (is(gr_a, "GAlignments")) {
+        if (isBam(a)) {
             R(gr_a <- grglist(gr_a))
             if (split)
                 R(gr_a <- unlist(gr_a, use.names=FALSE))
         }
-        if (is(gr_b, "GAlignments")) {
+        if (isBam(b)) {
             R(gr_b <- grglist(gr_b))
             if (split)
                 R(gr_b <- unlist(gr_b, use.names=FALSE))
         }
     }
 
-    if (wo || wao || loj) {
-        wa <- wb <- TRUE
-    }
     if (wao) {
         loj <- TRUE
     }
-
+    if (wo || loj) {
+        wa <- wb <- TRUE
+    }
+    
     if (S) {
-        gr_b_o <- .R(invert(gr_b))
+        .gr_b_o <- .R(invert(gr_b))
     } else {
-        gr_b_o <- .R(gr_b)
+        .gr_b_o <- .R(gr_b)
     }
 
-    fracRestriction <- !(missing(f) && missing(F))
+    ignore.strand <- !s
+
+    have_f <- !identical(f, formals(sys.function())$f)
+    have_F <- !identical(F, formals(sys.function())$F)
+    
+    fracRestriction <- have_f || have_F
     if (!fracRestriction) {
         if (u) {
-            return(R(ans <- subsetByOverlaps(gr_a, gr_b_o, ignore.strand=!s)))
+            return(R(ans <- subsetByOverlaps(gr_a, .gr_b_o,
+                                             ignore.strand=ignore.strand)))
         } else if (c) {
             R(ans <- gr_a)
-            return(R(mcols(ans)$c <- countOverlaps(gr_a, gr_b_o,
-                                                   ignore.strand=!s)))
+            return(R(mcols(ans)$c <-
+                countOverlaps(gr_a, .gr_b_o,
+                              ignore.strand=ignore.strand)))
         } else if (v) {
             if (!s && !S) {
-                gr_b_o <- .R(unstrand(gr_b))
+                .gr_b_o <- .R(unstrand(gr_b))
             }
-            return(R(ans <- gr_a[gr_a %outside% gr_b_o]))
+            return(R(ans <- gr_a[gr_a %outside% .gr_b_o]))
         }
     }
     
-    R(hits <- findOverlaps(gr_a, gr_b_o, ignore.strand=!s))
+    R(hits <- findOverlaps(gr_a, .gr_b_o, ignore.strand=ignore.strand))
 
     if (fracRestriction) {
-        R(o <- pintersect(gr_a[queryHits(hits)], gr_b[subjectHits(hits)]))
+        R(olap <- pintersect(gr_a[queryHits(hits)], gr_b[subjectHits(hits)],
+                             ignore.strand=ignore.strand))
+        R(o <- width(olap))
         if (r) {
             F <- f
         }
-        if (!missing(f)) {
+        if (have_f) {
             keep_f <- .R(o / width(gr_a)[queryHits(hits)] >= f)
         }
-        if (!missing(F)) {
+        if (have_F) {
             keep_F <- .R(o / width(gr_b)[subjectHits(hits)] >= F)
             if (!missing(f)) {
-                keep <- if (e) .R(keep_f | keep_F) else .R(keep_f & keep_F)
+                .keep <- if (e) .R(keep_f | keep_F) else .R(keep_f & keep_F)
             } else {
-                keep <- keep_F
+                .keep <- keep_F
             }
         } else {
-            keep <- keep_f
+            .keep <- keep_f
         }
-        R(hits <- hits[keep])
+        R(keep <- .keep)
+        if (wa || wb) {
+            R(hits <- hits[keep])
+        }
     }
     
     if (loj) {
@@ -159,7 +175,12 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
     } else if (wa) {
         R(ans <- gr_a[queryHits(hits)])
     } else {
-        R(ans <- pintersect(gr_a[queryHits(hits)], gr_b[subjectHits(hits)]))
+        if (fracRestriction) {
+            R(ans <- olap[keep])
+        } else {
+            R(ans <- pintersect(gr_a[queryHits(hits)], gr_b[subjectHits(hits)],
+                                ignore.strand=ignore.strand))
+        }
         if (wb) {
             R(mcols(ans)$b <- gr_b[subjectHits(hits)])
         }
@@ -169,12 +190,20 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
         R(seqlevels(gr_a) <- union(".", seqlevels(gr_a)))
     }
     if (wo || wao) {
-        R(mcols(ans)$o <- width(pintersect(ans, mcols(ans)$b)))
+        if (fracRestriction) {
+            .o <- .R(o)
+        } else {
+            .o <- .R(width(pintersect(ans, mcols(ans)$b,
+                                      ignore.strand=ignore.strand)))
+        }
+        R(mcols(ans)$o <- .o)
     }
 
     if (sortout) {
         R(ans <- sort(ans))
     }
+
+    R(ans)
 }
 
 BEDTOOLS_INTERSECT_DOC <-
@@ -193,8 +222,8 @@ BEDTOOLS_INTERSECT_DOC <-
        -u  Write original A entry once if any overlaps found in B. In other words, just report the fact at least one overlap was found in B. Restricted by -f and -r.
        -c  For each entry in A, report the number of hits in B while restricting to -f. Reports 0 for A entries that have no overlap with B. Restricted by -f and -r.
        -v  Only report those entries in A that have no overlap in B. Restricted by -f and -r.
-       -f  Minimum overlap required as a fraction of A. Default is 1E-9 (i.e. 1bp).
-       -F  Minimum overlap required as a fraction of B. Default is 1E-9 (i.e., 1bp).
+       -f <frac>  Minimum overlap required as a fraction of A [default: 1e-9].
+       -F <frac>  Minimum overlap required as a fraction of B [default: 1e-9].
        -r  Require that the fraction of overlap be reciprocal for A and B. In other words, if -f is 0.90 and -r is used, this requires that B overlap at least 90% of A and that A also overlaps at least 90% of B.
        -e  Require that the minimum fraction be satisfied for A _OR_ B. In other words, if -e is used with -f 0.90 and -F 0.10 this requires that either 90% of A is covered OR 10% of B is covered. Without -e, both fractions would have to be satisfied.
        -s  Force strandedness. That is, only report hits in B that overlap A on the same strand. By default, overlaps are reported without respect to strand.
