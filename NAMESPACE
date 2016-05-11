@@ -8,3 +8,4 @@ import(docopt)
 ## importFrom() others as needed
 
 exportPattern("(R_)?bedtools_.*")
+export(NAGRanges)

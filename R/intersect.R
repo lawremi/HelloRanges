@@ -89,7 +89,6 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
     }
 
     if (bed) {
-        ### FIXME: cannot access gr_a or gr_b!!!
         if (isBam(a)) {
             R(gr_a <- grglist(gr_a))
             if (split)
@@ -123,20 +122,30 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
     fracRestriction <- have_f || have_F
 
     if (fracRestriction || !(u || c || v)) {
-        R(hits <- findOverlaps(gr_a, .gr_b_o, ignore.strand=ignore.strand))
+        needHits <- u || c || v || loj
+        if (needHits) {
+            R(hits <- findOverlaps(gr_a, .gr_b_o, ignore.strand=ignore.strand))
+        } else {
+            R(pairs <- findOverlapPairs(gr_a, .gr_b_o,
+                                        ignore.strand=ignore.strand))
+        }
     }
 
+    .pairInt <- .R(pintersect(pairs, ignore.strand=ignore.strand))
+    
     if (fracRestriction) {
-        R(olap <- pintersect(gr_a[queryHits(hits)], gr_b[subjectHits(hits)],
-                             ignore.strand=ignore.strand))
+        if (needHits) {
+            R(pairs <- Pairs(gr_a, gr_b, hits=hits))
+        }
+        R(olap <- .pairInt)
         if (r) {
             F <- f
         }
         if (have_f) {
-            keep_f <- .R(width(olap) / width(gr_a)[queryHits(hits)] >= f)
+            keep_f <- .R(width(olap) / width(first(pairs)) >= f)
         }
         if (have_F) {
-            keep_F <- .R(width(olap) / width(gr_b)[subjectHits(hits)] >= F)
+            keep_F <- .R(width(olap) / width(second(pairs)) >= F)
             if (!missing(f)) {
                 .keep <- if (e) .R(keep_f | keep_F) else .R(keep_f & keep_F)
             } else {
@@ -146,8 +155,10 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
             .keep <- keep_f
         }
         R(keep <- .keep)
-        if (wa || wb || u || c || v) {
+        if (needHits) {
             R(hits <- hits[keep])
+        } else {
+            R(pairs <- pairs[keep])
         }
     }
 
@@ -185,42 +196,36 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
     }
     
     if (loj) {
-        R(seqlevels(gr_b) <- union(".", seqlevels(gr_b)))
-        R(ans <- merge(gr_a, gr_b, hits, all.x=loj, y.name="b",
-                       NA.VALUE=NAGRanges(gr_a)))
+        R(ans <- merge(gr_a, gr_b, hits, all.x=TRUE))
     } else if (wa && wb) {
-        R(ans <- merge(gr_a, gr_b, hits, y.name="b"))
+        R(ans <- pairs)
     } else if (wa) {
-        R(ans <- gr_a[queryHits(hits)])
+        R(ans <- first(pairs))
     } else {
         if (fracRestriction) {
             R(ans <- olap[keep])
+        } else if (wb) {
+            ans <- Pairs(.pairInt, second(pairs))
         } else {
-            R(ans <- pintersect(gr_a[queryHits(hits)], gr_b[subjectHits(hits)],
-                                ignore.strand=ignore.strand))
-        }
-        if (wb) {
-            rm(b)
-            R(mcols(ans)$b <- gr_b[subjectHits(hits)])
+            R(ans <- .pairInt)
         }
     }
     
-    if (wao) {
-        R(seqlevels(gr_a) <- union(".", seqlevels(gr_a)))
-    }
     if (wo || wao) {
         if (fracRestriction) {
             .o <- .R(width(olap))
         } else {
-            rm(b)
-            .o <- .R(width(pintersect(ans, mcols(ans)$b,
-                                      ignore.strand=ignore.strand)))
+            .o <- .R(width(pintersect(ans, ignore.strand=ignore.strand)))
         }
         R(mcols(ans)$o <- .o)
     }
 
     if (sortout) {
-        R(ans <- sort(ans))
+        if (wb) {
+            R(ans <- ans[order(first(ans))])
+        } else {
+            R(ans <- sort(ans))
+        }
     }
 
     R(ans)

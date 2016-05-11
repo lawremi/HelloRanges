@@ -67,20 +67,27 @@ setMethod("invert", "GenomicRanges", function(x) {
 
 setMethod("merge", c("Vector", "Vector"),
           function(x, y, by = findMatches(x, y), all.x = FALSE,
-                   NA.VALUE = y[NA], y.name = "y") {
+                   NA.VALUE = y[NA])
+          {
               stopifnot(is(by, "Hits"),
-                        isTRUEorFALSE(all.x),
-                        !all.x || !missing(NA.VALUE))
-              ans <- x[queryHits(by)]
-              mcols(ans)[[y.name]] <- y[subjectHits(by)]
+                        isTRUEorFALSE(all.x))
+              ans <- Pairs(x, y, hits=by)
               if (all.x) {
                   only_x <- rep(TRUE, queryLength(by))
                   only_x[queryHits(by)] <- FALSE
-                  ans_only_x <- x[only_x]
-                  mcols(ans_only_x)[[y.name]] <- NA.VALUE
+                  ans_only_x <- Pairs(x[only_x], rep(NA.VALUE, sum(only_x)))
                   ans <- c(ans, ans_only_x)
                   ans <- ans[order(c(queryHits(by), which(only_x)))]
               }
               ans
           })
 
+setMethod("merge", c("GenomicRanges", "GenomicRanges"),
+          function(x, y, by = findMatches(x, y), all.x = FALSE,
+                   NA.VALUE = NAGRanges(gr_a))
+          {
+              stopifnot(is(NA.VALUE, "GenomicRanges"))
+              seqlevels(x) <- union(seqlevels(NA.VALUE), seqlevels(x))
+              seqlevels(y) <- union(seqlevels(NA.VALUE), seqlevels(y))
+              callNextMethod(x, y, by, all.x, NA.VALUE)
+          })
