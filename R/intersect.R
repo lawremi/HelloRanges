@@ -121,37 +121,22 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
     have_F <- !identical(F, formals(sys.function())$F)
     
     fracRestriction <- have_f || have_F
-    if (!fracRestriction) {
-        if (u) {
-            return(R(ans <- subsetByOverlaps(gr_a, .gr_b_o,
-                                             ignore.strand=ignore.strand)))
-        } else if (c) {
-            R(ans <- gr_a)
-            return(R(mcols(ans)$c <-
-                countOverlaps(gr_a, .gr_b_o,
-                              ignore.strand=ignore.strand)))
-        } else if (v) {
-            if (!s && !S) {
-                .gr_b_o <- .R(unstrand(gr_b))
-            }
-            return(R(ans <- gr_a[gr_a %outside% .gr_b_o]))
-        }
+
+    if (fracRestriction || !(u || c || v)) {
+        R(hits <- findOverlaps(gr_a, .gr_b_o, ignore.strand=ignore.strand))
     }
-    
-    R(hits <- findOverlaps(gr_a, .gr_b_o, ignore.strand=ignore.strand))
 
     if (fracRestriction) {
         R(olap <- pintersect(gr_a[queryHits(hits)], gr_b[subjectHits(hits)],
                              ignore.strand=ignore.strand))
-        R(o <- width(olap))
         if (r) {
             F <- f
         }
         if (have_f) {
-            keep_f <- .R(o / width(gr_a)[queryHits(hits)] >= f)
+            keep_f <- .R(width(olap) / width(gr_a)[queryHits(hits)] >= f)
         }
         if (have_F) {
-            keep_F <- .R(o / width(gr_b)[subjectHits(hits)] >= F)
+            keep_F <- .R(width(olap) / width(gr_b)[subjectHits(hits)] >= F)
             if (!missing(f)) {
                 .keep <- if (e) .R(keep_f | keep_F) else .R(keep_f & keep_F)
             } else {
@@ -161,15 +146,48 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
             .keep <- keep_f
         }
         R(keep <- .keep)
-        if (wa || wb) {
+        if (wa || wb || u || c || v) {
             R(hits <- hits[keep])
         }
+    }
+
+    if (c) {
+        rm(c)
+        R(ans <- gr_a)
+        .c <- if (fracRestriction) {
+            .R(countQueryHits(hits))
+        } else {
+            .R(countOverlaps(gr_a, .gr_b_o,
+                             ignore.strand=ignore.strand))
+        }
+        R(mcols(ans)$c <- .c)
+        return(R(ans))
+    }
+
+    if (u) {
+        return(if (fracRestriction) {
+                   R(gr_a[countQueryHits(hits) > 0L])
+               } else {
+                   R(subsetByOverlaps(gr_a, .gr_b_o,
+                                      ignore.strand=ignore.strand))
+               })
+    }
+
+    if (v) {
+        return(if (fracRestriction) {
+                   R(gr_a[countQueryHits(hits) == 0L])
+               } else {
+                   if (!s && !S) {
+                       .gr_b_o <- .R(unstrand(gr_b))
+                   }
+                   R(gr_a[gr_a %outside% .gr_b_o])
+               })
     }
     
     if (loj) {
         R(seqlevels(gr_b) <- union(".", seqlevels(gr_b)))
         R(ans <- merge(gr_a, gr_b, hits, all.x=loj, y.name="b",
-                       NA.VALUE=GRanges(".", IRanges(0L, -1L))))
+                       NA.VALUE=NAGRanges(gr_a)))
     } else if (wa && wb) {
         R(ans <- merge(gr_a, gr_b, hits, y.name="b"))
     } else if (wa) {
@@ -182,6 +200,7 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
                                 ignore.strand=ignore.strand))
         }
         if (wb) {
+            rm(b)
             R(mcols(ans)$b <- gr_b[subjectHits(hits)])
         }
     }
@@ -191,8 +210,9 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
     }
     if (wo || wao) {
         if (fracRestriction) {
-            .o <- .R(o)
+            .o <- .R(width(olap))
         } else {
+            rm(b)
             .o <- .R(width(pintersect(ans, mcols(ans)$b,
                                       ignore.strand=ignore.strand)))
         }
@@ -212,13 +232,13 @@ BEDTOOLS_INTERSECT_DOC <-
      Options:
        -a <FILE>  BAM/BED/GFF/VCF file A. Each feature in A is compared to B in search of overlaps. Use 'stdin' if passing A with a UNIX pipe.
        -b <FILE1>... One or more BAM/BED/GFF/VCF file(s) B. Use 'stdin' if passing B with a UNIX pipe. -b may be followed with multiple databases and/or wildcard (*) character(s).
-       -ubam  Write uncompressed BAM output. The default is write compressed BAM output.
-       -bed  When using BAM input (-abam), write output as BED. The default is to write output in BAM when using -abam.
-       -wa  Write the original entry in A for each overlap.
-       -wb  Write the original entry in B for each overlap. Useful for knowing what A overlaps. Restricted by -f and -r.
-       -loj  Perform a 'left outer join'. That is, for each feature in A report each overlap with B. If no overlaps are found, report a NULL feature for B.
-       -wo  Write the original A and B entries plus the number of base pairs of overlap between the two features. Only A features with overlap are reported. Restricted by -f and -r.
-       -wao  Write the original A and B entries plus the number of base pairs of overlap between the two features. However, A features w/o overlap are also reported with a NULL B feature and overlap = 0. Restricted by -f and -r.
+       --ubam  Write uncompressed BAM output. The default is write compressed BAM output.
+       --bed  When using BAM input (-abam), write output as BED. The default is to write output in BAM when using -abam.
+       --wa  Write the original entry in A for each overlap.
+       --wb  Write the original entry in B for each overlap. Useful for knowing what A overlaps. Restricted by -f and -r.
+       --loj  Perform a 'left outer join'. That is, for each feature in A report each overlap with B. If no overlaps are found, report a NULL feature for B.
+       --wo  Write the original A and B entries plus the number of base pairs of overlap between the two features. Only A features with overlap are reported. Restricted by -f and -r.
+       --wao  Write the original A and B entries plus the number of base pairs of overlap between the two features. However, A features w/o overlap are also reported with a NULL B feature and overlap = 0. Restricted by -f and -r.
        -u  Write original A entry once if any overlaps found in B. In other words, just report the fact at least one overlap was found in B. Restricted by -f and -r.
        -c  For each entry in A, report the number of hits in B while restricting to -f. Reports 0 for A entries that have no overlap with B. Restricted by -f and -r.
        -v  Only report those entries in A that have no overlap in B. Restricted by -f and -r.
@@ -228,9 +248,9 @@ BEDTOOLS_INTERSECT_DOC <-
        -e  Require that the minimum fraction be satisfied for A _OR_ B. In other words, if -e is used with -f 0.90 and -F 0.10 this requires that either 90% of A is covered OR 10% of B is covered. Without -e, both fractions would have to be satisfied.
        -s  Force strandedness. That is, only report hits in B that overlap A on the same strand. By default, overlaps are reported without respect to strand.
        -S  Require different strandedness. That is, only report hits in B that overlap A on the _opposite_ strand. By default, overlaps are reported without respect to strand.
-       -split  Treat split BAM (i.e., having an 'N' CIGAR operation) or BED12 entries as distinct BED intervals.
-       -header  Print the header from the A file prior to results.
-       -names <name>... When using multiple databases (-b), provide an alias for each that will appear instead of a fileId when also printing the DB record.
-       -filenames  When using multiple databases (-b), show each complete filename instead of a fileId when also printing the DB record.
-       -sortout  When using multiple databases (-b), sort the output DB hits for each record."
+       --split  Treat split BAM (i.e., having an 'N' CIGAR operation) or BED12 entries as distinct BED intervals.
+       --header  Print the header from the A file prior to results.
+       --names <name>... When using multiple databases (-b), provide an alias for each that will appear instead of a fileId when also printing the DB record.
+       --filenames  When using multiple databases (-b), show each complete filename instead of a fileId when also printing the DB record.
+       --sortout  When using multiple databases (-b), sort the output DB hits for each record."
 
