@@ -5,7 +5,7 @@ import(IRanges)
 import(GenomicRanges)
 import(docopt)
 
-## importFrom() others as needed
+importFrom(tools, file_ext)
 
 exportPattern("(R_)?bedtools_.*")
-export(NAGRanges)
+export(NAGRanges, pair)

@@ -27,21 +27,38 @@ coerceOpts <- function(R_FUN, opts) {
     opts
 }
 
-substituteArgs <- function(expr) {
-    eval(call("substitute", expr), parent.frame(2L))
+substituteArgs <- function(expr, env = parent.frame(2L)) {
+    eval(call("substitute", expr), env)
 }
 
 .R <- function(expr) {
     substituteArgs(substitute(expr))
 }
 
-R <- function(expr) {
-    code <- substituteArgs(substitute(expr))
-    env <- parent.frame()
-    env$.code <- as.call(c(quote(`{`), as.list(parent.frame()$.code[-1L]),
-                           code))
+R <- function(expr, env = parent.frame()) {
+    code <- substituteArgs(substitute(expr), env)
+    env$.code <- as.call(c(quote(`{`), as.list(env$.code[-1L]), code))
     env$.code
 }
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### Genome file handling
+###
+
+setClass("GenomeFile", contains="RTLFile")
+
+GenomeFile <- function(resource) {
+    new("GenomeFile", resource=resource)
+}
+
+setMethod("import", "GenomeFile", function (con, format, text, ...) {
+    if (!missing(format))
+        checkArgFormat(con, format)
+    df <- read.table(con, sep="\t", colClasses=c("character", "integer"),
+                     col.names=c("seqnames", "seqlengths"))
+    genome <- file_path_sans_ext(basename(path(con)))
+    with(df, Seqinfo(seqnames, seqlengths, genome=genome))
+})
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ### NAGRanges: represents an NA for left outer join
@@ -57,15 +74,11 @@ NAGRanges <- function(x) {
 ### Vector and Ranges utilities (push up eventually)
 ###
 
-setGeneric("invert", function(x, ...) standardGeneric("invert"))
+## Once defined methods on 'merge' but generating a Pairs is not merging
 
-setMethod("invert", "GenomicRanges", function(x) {
-              map <- c("-", "+", "*")
-              strand(x) <- map[as.factor(strand(x))]
-              x
-          })
+setGeneric("pair", function(x, y, ...) standardGeneric("pair"))
 
-setMethod("merge", c("Vector", "Vector"),
+setMethod("pair", c("Vector", "Vector"),
           function(x, y, by = findMatches(x, y), all.x = FALSE,
                    NA.VALUE = y[NA])
           {
@@ -82,12 +95,15 @@ setMethod("merge", c("Vector", "Vector"),
               ans
           })
 
-setMethod("merge", c("GenomicRanges", "GenomicRanges"),
-          function(x, y, by = findMatches(x, y), all.x = FALSE,
-                   NA.VALUE = NAGRanges(gr_a))
-          {
-              stopifnot(is(NA.VALUE, "GenomicRanges"))
-              seqlevels(x) <- union(seqlevels(NA.VALUE), seqlevels(x))
-              seqlevels(y) <- union(seqlevels(NA.VALUE), seqlevels(y))
-              callNextMethod(x, y, by, all.x, NA.VALUE)
-          })
+setMethods("pair",
+           list(c("GenomicRanges", "GenomicRanges"),
+                c("GAlignments", "GenomicRanges"),
+                c("SummarizedExperiment", "GenomicRanges")),
+           function(x, y, by = findMatches(x, y), all.x = FALSE,
+                    NA.VALUE = NAGRanges(y))
+           {
+               stopifnot(is(NA.VALUE, "GenomicRanges"))
+               seqlevels(x) <- union(seqlevels(NA.VALUE), seqlevels(x))
+               seqlevels(y) <- union(seqlevels(NA.VALUE), seqlevels(y))
+               callNextMethod(x, y, by, all.x, NA.VALUE)
+           })
