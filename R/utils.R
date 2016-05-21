@@ -36,9 +36,16 @@ substituteArgs <- function(expr, env = parent.frame(2L)) {
 }
 
 R <- function(expr, env = parent.frame()) {
-    code <- substituteArgs(substitute(expr), env)
+    pushR(substituteArgs(substitute(expr), env), env)
+}
+
+pushR <- function(code = getR(parent.frame()), env) {
     env$.code <- as.call(c(quote(`{`), as.list(env$.code[-1L]), code))
     env$.code
+}
+
+getR <- function(env) {
+    as.list(env$.code[-1L])
 }
 
 ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

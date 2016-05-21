@@ -5,10 +5,7 @@
 ### Based on tests from bedtools (C) 2016 Aaron Quinlan et al.
 ###
 
-library(HelloRanges)
-library(RUnit)
-
-test_basic_self_intersection <- function() {
+test_intersect <- function() {
     fixup <- function(x) {
         mcols(x)$hit <- NULL # 'hit' column added by pintersect()
         x
@@ -55,7 +52,7 @@ test_basic_self_intersection <- function() {
 
     exp_o <- exp_a_b
     mcols(exp_o)$overlap_width <- c(1L, 10L)
-    r <- bedtools_intersect("-a a.bed -b b.bed -wa -wb -wo")
+    r <- bedtools_intersect("-a a.bed -b b.bed -wo")
     checkIdentical(exp_o, eval(r))
 
     suppressWarnings({
@@ -65,13 +62,13 @@ test_basic_self_intersection <- function() {
     })
     mcols(exp_loj)$overlap_width <- c(0L, 1L, 10L)
 
-    r <- bedtools_intersect("-a a.bed -b b.bed -wa -wb -wao")
+    r <- bedtools_intersect("-a a.bed -b b.bed -wao")
     checkIdentical(exp_loj, eval(r))
 
-    r <- bedtools_intersect("-a a.bed -b b.bed -wa -wb -wo -s")
+    r <- bedtools_intersect("-a a.bed -b b.bed -wo -s")
     checkIdentical(exp_o[1L], eval(r))
 
-    r <- bedtools_intersect("-a a.bed -b b.bed -wa -wb -wao -s")
+    r <- bedtools_intersect("-a a.bed -b b.bed -wao -s")
     checkIdentical(exp_loj[1:2], eval(r))
 
     p <- pipe("cat a.bed | Rscript -e 'library(HelloRanges); export(eval(bedtools_intersect(\"-a stdin -b b.bed\")), stdout(), format=\"bed\")'", "r")
@@ -104,6 +101,17 @@ test_basic_self_intersection <- function() {
     r <- bedtools_intersect("-a three_blocks.bam -b three_blocks_match_1bp.bed -split -f 0.1")
     checkIdentical(three_blocks_exp[NULL], eval(r))
 
+    three_blocks_match <- import("three_blocks_match.bed")
+    d <- import("d.bed")
+    p <- Pairs(three_blocks_match, d)
+    mcols(p)$overlap_width <- 5L
+    r <- bedtools_intersect("-a three_blocks_match.bed -b d.bed -split -wo")
+    checkIdentical(p, eval(r))
+
+    first(p) <- asBED(three_blocks_exp)
+    r <- bedtools_intersect("-a three_blocks.bam -b d.bed -split -wo -bed")
+    checkIdentical(p, eval(r))
+    
     one_block_c_exp <- GenomicAlignments::readGAlignments(one_block)
     mcols(one_block_c_exp)$overlap_count <- 1L
     r <- bedtools_intersect("-a one_block.bam -b c.bed -c")
@@ -120,4 +128,36 @@ test_basic_self_intersection <- function() {
     seqlevels(second(bam_wo_exp)) <- c(".", seqlevels(second(bam_wo_exp)))
     r <- bedtools_intersect("-a one_block.bam -b c.bed -wao")
     checkIdentical(bam_wo_exp, eval(r))
+
+### FIXME: these -f tests (from bedtools) are not that great
+    
+    x <- import("x.bed")
+    y <- import("y.bed")
+    f_exp <- pintersect(x, y, ignore.strand=TRUE)
+    r <- bedtools_intersect("-a x.bed -b y.bed -f 0.2")
+    checkIdentical(f_exp, eval(r))
+
+    r <- bedtools_intersect("-a x.bed -b y.bed -f 0.21")
+    checkIdentical(f_exp[NULL], eval(r))
+
+    r <- bedtools_intersect("-a x.bed -b y.bed -F 0.21")
+    checkIdentical(f_exp, eval(r))
+
+    r <- bedtools_intersect("-a x.bed -b y.bed -f 0.21 -F 0.21")
+    checkIdentical(f_exp[NULL], eval(r))
+
+    r <- bedtools_intersect("-a x.bed -b y.bed -f 0.21 -r")
+    checkIdentical(f_exp[NULL], eval(r))
+
+    r <- bedtools_intersect("-a x.bed -b y.bed -f 0.19 -F 0.21")
+    checkIdentical(f_exp, eval(r))
+
+    r <- bedtools_intersect("-a x.bed -b y.bed -f 0.19 -F 0.5")
+    checkIdentical(f_exp, eval(r))
+
+    r <- bedtools_intersect("-a x.bed -b y.bed -f 0.19 -F 0.51")
+    checkIdentical(f_exp[NULL], eval(r))
+
+    r <- bedtools_intersect("-a x.bed -b y.bed -f 0.21 -F 0.21 -e")
+    checkIdentical(f_exp, eval(r))
 }

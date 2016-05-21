@@ -8,7 +8,7 @@ bedtools_intersect <- function(cmd = "--help") {
 }
 
 stdinFile <- function() {
-    message("Assuming BED format for 'stdin'; modify if otherwise")
+    message("Assuming BED format for 'stdin'; modify return value if otherwise")
     .R(BEDFile("stdin"))
 }
 
@@ -31,14 +31,50 @@ normB <- function(b) {
     else as.call(c(quote(c), lapply(p, normBToken)))
 }
 
-isBam <- function(x) {
-    (is.character(x) && file_ext(x) == "bam") || is(x, "BamFile")
+importA <- function(a) {
+    a <- a
+    .gr_a <- objectName(a)
+    R(.gr_a <- import(a, genome=genome))
+    pushR(env=parent.frame())
+    .gr_a
+}
+
+applyB <- function(.gr_b, FUN, names, filenames, ...) {
+    R(bv <- b)
+    if (filenames) {
+        R(names(bv) <- vapply(bv, as.character, character(1L)))
+    } else if (!is.null(names)) {
+        R(names(bv) <- names)
+    }
+    R(bl <- List(lapply(bv, FUN)))
+### FIXME: assumes list elements are of the same format and same "shape"
+    R(.gr_b <- stack(bl, "b"))
+    pushR(env=parent.frame())
+}
+
+importB <- function(b, names=NULL, filenames=FALSE) {
+    b <- b
+    .gr_b <- objectName(b)
+    if (is.character(b) || b[[1L]] == quote(BEDFile))
+        R(.gr_b <- import(b, genome=genome))
+    else {
+        applyB(.gr_b, function(bi) import(bi, genome=genome), names, filenames)
+    }
+    pushR(env=parent.frame())
+    .gr_b
 }
 
 hasFormat <- function(x, format) {
+    if (is.vector(x)) {
+        x <- x[[1L]]
+    }
     (is.character(x) && (file_ext(x) == format ||
                          file_ext(sub("\\.gz$", "", x)) == format)) ||
-        (is(x, "TabixFile") && hasFormat(path(x), format))
+        (is.call(x) && tolower(x[[1L]]) == paste0(format, "file"))
+}
+
+isBam <- function(x) {
+    hasFormat(x, "bam")
 }
 
 isBed <- function(x) {
@@ -100,8 +136,7 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
                                  f=1e-9, F=1e-9, r=FALSE, e=FALSE, s=FALSE,
                                  S=FALSE, split=FALSE, g=NA_character_,
                                  header=FALSE, # ignored
-                                 names=as.character(seq_along(b)),
-                                 filenames=FALSE, sortout=FALSE)
+                                 names=NULL, filenames=FALSE, sortout=FALSE)
 {
     stopifnot(isSingleString(a),
               is.character(b), !anyNA(b), length(b) >= 1L,
@@ -115,19 +150,23 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
               isTRUEorFALSE(u),
               isTRUEorFALSE(c),
               isTRUEorFALSE(v),
-              isSingleNumber(f),
-              isSingleNumber(F),
+              isSingleNumber(f), f > 0, f <= 1,
+              isSingleNumber(F), F > 0, F <= 1,
               isTRUEorFALSE(r),
               isTRUEorFALSE(e),
               isTRUEorFALSE(s),
-              isTRUEorFALSE(S),
+              isTRUEorFALSE(S), !(s && S),
               isTRUEorFALSE(split),
               isSingleStringOrNA(g),
               isTRUEorFALSE(header),
-              is.character(names), !anyNA(names), length(names) == length(b),
               isTRUEorFALSE(filenames),
               isTRUEorFALSE(sortout))
 
+    if (!is.null(names)) {
+        stopifnot(is.character(names), !anyNA(names),
+                  length(names) == length(b))
+    }
+    
     haveGenomeFile <- identical(file_ext(g), "genome")
     if (haveGenomeFile) {
         R(genome <- import(g))
@@ -135,28 +174,11 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
         R(genome <- g)
     }
 
-    .gr_a <- objectName(a)
-    .gr_b <- objectName(b)
-    
     a <- normA(a)
     b <- normB(b)
-    R(.gr_a <- import(a, genome=genome))
-    if (is.character(b) || b[[1L]] == quote(BEDFile))
-        R(.gr_b <- import(b, genome=genome))
-    else {
-        R(bv <- b)
-        R(grl_b <- List(lapply(bv, import, genome=genome)))
-        if (wb || sortout) {
-            if (filenames) {
-                R(names(grl_b) <- vapply(bv, as.character, character(1L)))
-            } else if (!missing(names)) {
-                R(names(grl_b) <- names)
-            }
-            R(.gr_b <- stack(grl_b, "b"))
-        } else {
-            R(.gr_b <- unlist(grl_b))
-        }
-    }
+    
+    .gr_a <- importA(a)
+    .gr_b <- importB(b, names, filenames)
     
     .gr_a_o <- prepOverlapRanges(a, split)
     .gr_b_o <- prepOverlapRanges(b, split)
@@ -177,10 +199,13 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
         .gr_b_o <- .R(invertStrand(.gr_b_o))
     }
 
-    ignore.strand <- !s
+    ignore.strand <- !(s || S)
 
     have_f <- !identical(f, formals(sys.function())$f)
     have_F <- !identical(F, formals(sys.function())$F)
+    if (!have_f && r) {
+        stop("-r requires -f")
+    }
     
     fracRestriction <- have_f || have_F
 
@@ -227,24 +252,22 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
         .width_olap <- overlapWidth()
         if (r) {
             F <- f
-            have_F <- have_f
+            have_F <- TRUE
         }
         if (have_f) {
             .width_first <- if (is_grl_a) .R(sum(width(first(pairs))))
                             else .R(width(first(pairs)))
-            keep_f <- .R(.width_olap / .width_first >= f)
+            .keep <- .R(.width_olap / .width_first >= f)
         }
         if (have_F) {
             .width_second <- if (is_grl_b) .R(sum(width(second(pairs))))
                              else .R(width(second(pairs)))
-            keep_F <- .R(.width_olap / .width_second >= F)
-            if (!missing(f)) {
-                .keep <- if (e) .R(keep_f | keep_F) else .R(keep_f & keep_F)
+            .keep_F <- .R(.width_olap / .width_second >= F)
+            if (have_f) {
+                .keep <- if (e) .R(.keep | .keep_F) else .R(.keep & .keep_F)
             } else {
-                .keep <- keep_F
+                .keep <- .keep_F
             }
-        } else if (have_f) {
-            .keep <- keep_f
         }
         if (fracRestriction) {
             R(keep <- .keep)
