@@ -1,0 +1,246 @@
+bedtools_closest <- function(cmd = "--help") {
+    do_R_call(R_bedtools_closest, BEDTOOLS_CLOSEST_DOC, cmd)
+}
+
+## Essentially an LOJ based on closest match between 'a' and 'b'
+
+### NOTE: When ranges overlap, bedtools selects the 'b' range that
+### overlaps the largest fraction of the 'a' range. That behavior
+### seems somewhat arbitrary, so we do not imitate it.
+
+R_bedtools_closest <- function(a, b, s=FALSE, S=FALSE,
+                               d=FALSE, D=c("none", "ref", "a", "b"),
+                               io=FALSE, iu=FALSE, id=FALSE,
+                               fu=FALSE, fd=FALSE,
+                               t=c("all", "first", "last"),
+                               mdb=c("each", "all"), k=1L,
+                               names=NULL, filenames=FALSE,
+                               N=FALSE)
+{
+    D <- match.arg(D)
+    t <- match.arg(t)
+    mdb <- match.arg(mdb)
+    
+    stopifnot(isSingleString(a),
+              is.character(b), !anyNA(b), length(b) >= 1L,
+              isTRUEorFALSE(s),
+              isTRUEorFALSE(S), !(s && S),
+              isTRUEorFALSE(d), !d || D == "none",
+              isTRUEorFALSE(io),
+              isTRUEorFALSE(iu), !iu || D != "none", !(iu && fu),
+              isTRUEorFALSE(id), !id || D != "none", !(io && iu && id),
+                                 !(id && fd),
+              isTRUEorFALSE(fu),
+              isTRUEorFALSE(fd), !(fu && fd),
+              isSingleNumber(k), k >= 1L,
+              isTRUEorFALSE(filenames),
+              isTRUEorFALSE(N))
+
+    if (k > 1L) {
+        stop("'-k' > 1 not yet supported")
+    }
+    if (N) {
+        stop("'-N' not yet supported")
+    }
+    
+    if (!is.null(names)) {
+        stopifnot(is.character(names), !anyNA(names),
+                  length(names) == length(b))
+    }
+    
+    R(genome <- NA_character_) # no 'g' parameter
+    
+    a <- normA(a)
+    b <- normB(b)
+
+    .gr_a <- importA(a)
+    
+    loopOverB <- length(b) > 1L && mdb == "each"
+    if (loopOverB) {
+        makeBV(names, filenames)
+        .preamble <- .code
+        rm(.code)
+        .gr_b <- importB(quote(bi))
+    } else {
+        .gr_b <- importB(b, names, filenames)
+    }
+
+    .gr_a_o <- prepOverlapRanges(a, FALSE)
+    .gr_b_o <- prepOverlapRanges(b, FALSE)
+    
+    if (S) {
+        .gr_b_o <- .R(invertStrand(.gr_b_o))
+    }
+    
+    ignore.strand <- !(s || S)
+    deferRestriction <- !ignore.strand && D == "ref" && (id || iu)
+    useNearest <- !(iu || id || io || fu || fd)
+    if (useNearest) { 
+        R(hits <- nearest(.gr_a_o, .gr_b_o, ignore.strand=ignore.strand,
+                          select="all"))
+    } else {
+        hits <- NULL
+        if (!io) {
+            R(overlaps <- findOverlaps(.gr_a_o, .gr_b_o,
+                                       ignore.strand=ignore.strand))
+            hits <- quote(overlaps)
+        }
+        ignore.strand <- ignore.strand && D %in% c("a", "b")
+        if (!(s || S)) {
+            if (D == "a")
+                .gr_b_o <- .R(unstrand(.gr_b_o))
+            else if (D == "b")
+                .gr_a_o <- .R(unstrand(.gr_a_o))
+        }
+        transpose <- D == "b" && (!iu || !id)
+        if (transpose) {
+            .gr_tmp_o <- .gr_a_o
+            .gr_a_o <- .gr_b_o
+            .gr_b_o <- .gr_tmp_o
+            .findUp <- quote(precede)
+            .findDown <- quote(follow)
+            .aHits <- quote(subjectHits)
+        } else {
+            .findUp <- quote(follow)
+            .findDown <- quote(precede)
+            .aHits <- quote(queryHits)
+        }
+        if (!iu || deferRestriction) {
+            R(upstream <- .findUp(.gr_a_o, .gr_b_o, ignore.strand=ignore.strand,
+                                 select="all"))
+            hits <- c(hits, quote(upstream))
+        }
+        if (!id || deferRestriction) {
+            R(downstream <- .findDown(.gr_a_o, .gr_b_o,
+                                      ignore.strand=ignore.strand,
+                                      select="all"))
+            hits <- c(hits, quote(downstream))
+        }
+        if (fu) {
+            if (!io) {
+                R(overlaps <-
+                      overlaps[!queryHits(overlaps) %in% .aHits(upstream)])
+            }
+            if (!id) {
+                R(downstream <-
+                      downstream[!.aHits(downstream) %in% .aHits(upstream)])
+            }
+        }
+        if (fd) {
+            if (!io) {
+                R(overlaps <-
+                      overlaps[!queryHits(overlaps) %in% .aHits(downstream)])
+            }
+            if (!iu) {
+                R(upstream <-
+                      upstream[!.aHits(upstream) %in% .aHits(downstream)])
+            }
+        }
+        if (length(hits) > 1L) {
+            .combine <- as.call(c(quote(c), hits))
+            R(hits <- .combine)
+            .hits <- .R(hits)
+        } else {
+            .hits <- hits[[1L]]
+        }
+        if (transpose) {
+            .hits <- .R(t(.hits))
+        }
+    }
+
+### FIXME: Ideally, we filter out all ties prior to Pairs formation,
+### but in the deferRestriction case, we need to defer.
+    if (t != "all") {
+        .breakTies <- .R(hits <- selectHits(hits, select=t))
+        if (!deferRestriction) {
+            R(.breakTies)
+        }
+    }
+    
+    R(ans <- Pairs(.gr_a, .gr_b, hits=hits))
+
+    if (d || D != "none") {
+        R(mcols(ans)$distance <- distance(ans))
+    }
+    
+    if (D != "none") {
+        if (id) { # everything upstream/overlap
+            R(mcols(ans)$distance <- mcols(ans)$distance * -1L)
+        } else {
+            .left <- if (D == "ref") quote(upstream) else quote(left)
+            R(.left <- start(second(ans)) < start(first(ans)))
+            if (D == "a") {
+                .respect_to <- .R(first(ans))
+            } else if (D == "b") {
+                .respect_to <- .R(second(ans))
+            }
+            if (D != "ref") {
+                R(upstream <- xor(strand(.respect_to) == "-", .left))
+            }
+            R(mcols(ans)$distance[upstream] <-
+                           mcols(ans)$distance[upstream] * -1L)
+        }
+        if (deferRestriction) {
+            .restriction <- if (id) {
+                                quote(distance <= 0L)
+                            } else if (iu) {
+                                quote(distance >= 0L)
+                            } else {
+                                quote(distance == 0L)
+                            }
+            if (t == "all") {
+                R(ans <- subset(ans, .restriction))
+            } else {
+                R(hits <- hits[with(ans, .restriction)])
+                R(.breakTies)
+                R(ans <- Pairs(.gr_a, .gr_b, hits=hits))
+                R(mcols(ans) <- distance(ans))
+            }
+        }
+    }
+
+    if (loopOverB) {
+        loopFun <- as.function(c(quote(bi), list(.code)))
+        .code <- .preamble
+        applyB(quote(ans), loopFun, names, filenames)
+    }
+
+    R(ans)
+}
+
+BEDTOOLS_CLOSEST_DOC <-
+    "Usage:
+       bedtools_intersect [options]
+     Options:
+       -a <FILE> BAM/BED/GFF/VCF file A. Each feature in A is compared to B in search of overlaps. Use 'stdin' if passing A with a UNIX pipe.
+       -b <FILE1>... One or more BAM/BED/GFF/VCF file(s) B. Use 'stdin' if passing B with a UNIX pipe. -b may be followed with multiple databases and/or wildcard (*) character(s).
+       -s  Require same strandedness. That is, find the closest feature in B that overlaps A on the _same_ strand. By default, overlaps are reported without respect to strand.
+       -S  Require opposite strandedness. That is, find the closest featurein B that overlaps A on the _opposite_ strand. By default, overlaps are reported without respect to strand.
+       -d  In addition to the closest feature in B, report its distance to A as an extra column. The reported distance for overlapping features will be 0.
+       -D <mode>  Like -d, report the closest feature in B, and its distance to A as an extra column. However unlike -d, use negative distances to report upstream features.
+                The options for defining which orientation is \"upstream\" are:
+                * ref: Report distance with respect to the reference genome.
+                       B features with a lower (start, stop) are upstream.
+                * a: Report distance with respect to A.
+                     When A is on the - strand, \"upstream\" means B has a
+                     higher (start,stop).
+                * b: Report distance with respect to B.
+                     When B is on the - strand, \"upstream\" means A has a
+                     higher (start,stop).
+       -io Ignore features in B that overlap A. That is, we want close, yet not touching features only.
+       -iu Ignore features in B that are upstream of features in A. This option requires -D and follows its orientation rules for determining what is \"upstream\".
+       -id Ignore features in B that are downstream of features in A. This option requires -D and follows its orientation rules for determining what is \"downstream\".
+       -fu Choose first from features in B that are upstream of features in A. This option requires -D and follows its orientation rules for determining what is \"upstream\".
+       -fd Choose first from features in B that are downstream of features in A. This option requires -D and follows its orientation rules for determining what is \"downstream\".
+       -t <mode>  Specify how ties for closest feature should be handled. This occurs when two features in B have exactly the same \"closeness\" with A. By default, all such features in B are reported.
+                Here are all the options:
+                * all: Report all ties (default).
+                * first: Report the first tie that occurred in the B file.
+                * last: Report the last tie that occurred in the B file.
+       -mdb <mode>  Specifiy how multiple databases should be resolved.
+                * each: Report closest records for each database (default).
+                * all: Report closest records among all databases.
+       -k <number>  Report the k closest hits. Default is 1. If tieMode = \"all\", all ties will still be reported.
+       -names <name>...  When using multiple databases (-b), provide an alias for each that will appear instead of a fileId when also printing the DB record.
+       -filenames  When using multiple databases (-b), show each complete filename instead of a fileId when also printing the DB record.
+       -N  Require that the query and the closest hit have different names. For BED, the 4th column is compared."
