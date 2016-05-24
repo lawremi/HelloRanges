@@ -71,9 +71,21 @@ setMethod("import", "GenomeFile", function (con, format, text, ...) {
 ### NAGRanges: represents an NA for left outer join
 ###
 
+makeNAColumn <- function(x) {
+### FIXME: extractROWS() should support NA subscripts, but oh well
+    if (is(x, "Rle"))
+        x <- decode(x)
+    ans <- x[NA_integer_]
+    if (is(x, "Rle"))
+        ans <- Rle(ans)
+    ans
+}
+
 NAGRanges <- function(x) {
     na <- GRanges(".", IRanges(0L, -1L))
-    mcols(na) <- DataFrame(lapply(mcols(x), `[`, NA_integer_))
+    mcols(na) <- if (length(mcols(x)) > 0L)
+                     DataFrame(lapply(mcols(x), makeNAColumn))
+                 else S4Vectors:::make_zero_col_DataFrame(1L)
     na
 }
 

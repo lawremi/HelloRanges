@@ -26,9 +26,10 @@ normB <- function(b) {
             .R(Sys.glob(bi))
         else bi
     }
+    b <- strsplit(b, ",", fixed=TRUE)[[1L]]
     if (length(b) == 1L)
         normBToken(b)
-    else as.call(c(quote(c), lapply(p, normBToken)))
+    else as.call(c(quote(c), lapply(b, normBToken)))
 }
 
 importA <- function(a) {
@@ -39,26 +40,22 @@ importA <- function(a) {
     .gr_a
 }
 
-applyB <- function(.gr_b, FUN, names, filenames, ...) {
-    R(bv <- b)
-    if (filenames) {
-        R(names(bv) <- vapply(bv, as.character, character(1L)))
-    } else if (!is.null(names)) {
-        R(names(bv) <- names)
-    }
-    R(bl <- List(lapply(bv, FUN)))
-### FIXME: assumes list elements are of the same format and same "shape"
-    R(.gr_b <- stack(bl, "b"))
-    pushR(env=parent.frame())
-}
-
 importB <- function(b, names=NULL, filenames=FALSE) {
-    b <- b
+    bval <- b
     .gr_b <- objectName(b)
-    if (is.character(b) || b[[1L]] == quote(BEDFile))
-        R(.gr_b <- import(b, genome=genome))
+    if (is.character(b) || is.name(b) || b[[1L]] == quote(BEDFile))
+        R(.gr_b <- import(bval, genome=genome))
     else {
-        applyB(.gr_b, function(bi) import(bi, genome=genome), names, filenames)
+        R(b <- bval)
+        if (filenames) {
+            R(names(b) <- vapply(b, as.character, character(1L)))
+        } else if (!is.null(names)) {
+            nms <- strsplit(names, ",", fixed=TRUE)[[1L]]
+            R(names(b) <- nms)
+        }
+        R(bl <- List(lapply(b, import, genome=genome)))
+### FIXME: assumes list elements are of the same format and same "shape"
+        R(.gr_b <- stack(bl, "b"))
     }
     pushR(env=parent.frame())
     .gr_b
@@ -388,7 +385,7 @@ BEDTOOLS_INTERSECT_DOC <-
        bedtools_intersect [options]
      Options:
        -a <FILE>  BAM/BED/GFF/VCF file A. Each feature in A is compared to B in search of overlaps. Use 'stdin' if passing A with a UNIX pipe.
-       -b <FILE1>... One or more BAM/BED/GFF/VCF file(s) B. Use 'stdin' if passing B with a UNIX pipe. -b may be followed with multiple databases and/or wildcard (*) character(s).
+       -b <FILE1,...> One or more BAM/BED/GFF/VCF file(s) B. Use 'stdin' if passing B with a UNIX pipe. -b may be followed with multiple databases and/or wildcard (*) character(s).
        --ubam  Write uncompressed BAM output. The default is write compressed BAM output.
        --bed  When using BAM input (-abam), write output as BED. The default is to write output in BAM when using -abam.
        --wa  Write the original entry in A for each overlap.
@@ -408,7 +405,7 @@ BEDTOOLS_INTERSECT_DOC <-
        --split  Treat split BAM (i.e., having an 'N' CIGAR operation) or BED12 entries as distinct BED intervals.
        -g <path> Specify a genome file or identifier that defines the order and size of the sequences.
        --header  Print the header from the A file prior to results.
-       --names <name>... When using multiple databases (-b), provide an alias for each that will appear instead of a fileId when also printing the DB record.
+       --names <name,...> When using multiple databases (-b), provide an alias for each that will appear instead of a fileId when also printing the DB record.
        --filenames  When using multiple databases (-b), show each complete filename instead of a fileId when also printing the DB record.
        --sortout  When using multiple databases (-b), sort the output DB hits for each record."
 
