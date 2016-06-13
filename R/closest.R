@@ -55,7 +55,7 @@ R_bedtools_closest <- function(a, b, s=FALSE, S=FALSE,
                   length(names) == length(b))
     }
     
-    R(genome <- NA_character_) # no 'g' parameter
+    R(genome <- Seqinfo(genome=NA_character_)) # no 'g' parameter
     
     a <- normA(a)
     b <- normB(b)
@@ -115,20 +115,12 @@ R_bedtools_closest <- function(a, b, s=FALSE, S=FALSE,
         if (!iu || deferRestriction) {
             R(upstream <- .findUp(.gr_a_o, .gr_b_o, ignore.strand=ignore.strand,
                                   select="all"))
-            if (!io && !fu) {
-                R(upstream <-
-                      upstream[!.aHits(upstream) %in% .aHits(overlaps)])
-            }
             hits <- c(hits, quote(upstream))
         }
         if (!id || deferRestriction) {
             R(downstream <- .findDown(.gr_a_o, .gr_b_o,
                                       ignore.strand=ignore.strand,
                                       select="all"))
-            if (!io && !fd) {
-                R(downstream <-
-                      downstream[!.aHits(downstream) %in% .aHits(overlaps)])
-            }
             hits <- c(hits, quote(downstream))
         }
         if (fu) {
@@ -154,6 +146,10 @@ R_bedtools_closest <- function(a, b, s=FALSE, S=FALSE,
         if (length(hits) > 1L) {
             .combine <- as.call(c(quote(c), hits))
             R(.hits <- .combine)
+            unresolved <- length(hits) == 3L || !(fd || fu)
+            if (unresolved) {
+                R(.hits <- selectNearest(.hits, .gr_a_o, .gr_b_o))
+            }
         } else {
             .hits <- hits[[1L]]
         }
@@ -239,3 +235,5 @@ BEDTOOLS_CLOSEST_DOC <-
        --names <NAME1,...>  When using multiple databases (-b), provide an alias for each that will appear instead of a fileId when also printing the DB record.
        --filenames  When using multiple databases (-b), show each complete filename instead of a fileId when also printing the DB record.
        -N  Require that the query and the closest hit have different names. For BED, the 4th column is compared."
+
+do_bedtools_closest <- make_do(R_bedtools_closest)

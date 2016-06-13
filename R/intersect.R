@@ -32,20 +32,44 @@ normB <- function(b) {
     else as.call(c(quote(c), lapply(b, normBToken)))
 }
 
-importA <- function(a) {
+importExtraColsArgs <- function(x, cols) {
+    autoBamCols <- c("seqnames", "start", "cigar")
+    if (isBam(x) && !all(cols %in% autoBamCols)) {
+        .what <- setdiff(cols, c(autoBamCols, "names"))
+        .param <- .R(ScanBamParam(what=.what))
+        list(use.names = "names" %in% cols, param = .param)
+    }
+}
+
+isResource <- function(x)
+    is.character(x) || is(x, "RTLFile") || is(x, "RsamtoolsFile")
+
+importA <- function(a, extraCols=character(0L), ...) {
     a <- a
     .gr_a <- objectName(a)
-    R(.gr_a <- import(a, genome=genome))
+    if (isResource(a)) {
+        args <- c(importExtraColsArgs(a, extraCols), list(...))
+        .import <- as.call(c(quote(import), a, genome=quote(genome), args))
+        R(.gr_a <- .import)
+    } else {
+        .a <- quote(a)
+        R(.gr_a <- .a)
+    }
     pushR(env=parent.frame())
     .gr_a
 }
 
-importB <- function(b, names=NULL, filenames=FALSE) {
+importB <- function(b, names=NULL, filenames=FALSE, extraCols=character(0L),
+                    ...)
+{
     bval <- b
     .gr_b <- objectName(b)
-    if (is.character(b) || is.name(b) || b[[1L]] == quote(BEDFile))
-        R(.gr_b <- import(bval, genome=genome))
-    else {
+    args <- c(importExtraColsArgs(b, extraCols), list(...))
+    if (is.character(b) || is.name(b) || b[[1L]] == quote(BEDFile)) {
+        .import <- as.call(c(quote(import), b, genome=quote(genome), args))
+        R(.gr_b <- .import)
+    }
+    else if (is.call(b)) {
         R(b <- bval)
         if (filenames) {
             R(names(b) <- vapply(b, as.character, character(1L)))
@@ -53,36 +77,49 @@ importB <- function(b, names=NULL, filenames=FALSE) {
             nms <- strsplit(names, ",", fixed=TRUE)[[1L]]
             R(names(b) <- nms)
         }
-        R(bl <- List(lapply(b, import, genome=genome)))
+        .import <- as.call(c(call("lapply", b, quote(import),
+                                  genome=quote(genome)),
+                             args))
+        R(bl <- List(.import))
 ### FIXME: assumes list elements are of the same format and same "shape"
         R(.gr_b <- stack(bl, "b"))
+    } else {
+        R(.gr_b <- b)
     }
     pushR(env=parent.frame())
     .gr_b
 }
 
-hasFormat <- function(x, format) {
+getFormat <- function(x) {
     if (is.vector(x)) {
         x <- x[[1L]]
     }
-    (is.character(x) && (file_ext(x) == format ||
-                         file_ext(sub("\\.gz$", "", x)) == format)) ||
-        (is.call(x) && tolower(x[[1L]]) == paste0(format, "file"))
+    if (is.call(x)) {
+        sub("file$", "", tolower(x[[1L]]))
+    } else if (is(x, "RTLFile") || is(x, "RsamtoolsFile")) {
+        tolower(sub("File$", "", class(x)))
+    } else {
+        file_ext(sub("[0-9]$", "", sub("\\.b?gz$", "", x)))
+    }
+}
+
+hasFormat <- function(x, format) {
+    getFormat(x) == format
 }
 
 isBam <- function(x) {
-    hasFormat(x, "bam")
+    hasFormat(x, "bam") || is(x, "GAlignments") || is(x, "GAlignmentPairs")
 }
 
 isBed <- function(x) {
-    hasFormat(x, "bed")
+    hasFormat(x, "bed") || is(x, "GenomicRangesORGRangesList")
 }
 
 isVcf <- function(x) {
-    hasFormat(x, "vcf")
+    hasFormat(x, "vcf") || is(x, "VCF") || is(x, "VRanges")
 }
 
-prepOverlapRanges <- function(x, split) {
+prepOverlapRanges <- function(x, split=FALSE) {
     gr_x <- parent.frame()[[paste0(".gr_", deparse(substitute(x)))]]
     eval(substitute({
         if (isBam(x)) {
@@ -118,13 +155,105 @@ prepAnsRanges <- function(x, bed) {
 }
 
 objectName <- function(x) {
+    label <- deparse(substitute(x))
     eval(substitute({
         if (isBam(x))
             .R(ga_x)
         else if (isVcf(x))
             .R(vcf_x)
         else .R(gr_x)
-    }, list(gr_x = as.name(paste0("gr_", deparse(substitute(x)))))))
+    }, list(gr_x = as.name(paste0("gr_", label)),
+            ga_x = as.name(paste0("ga_", label)),
+            vcf_x = as.name(paste0("vcf_", label)))))
+}
+
+importGenome <- function(g) {
+    g <- g
+    haveGenomeFile <- identical(file_ext(g), "genome")
+    if (haveGenomeFile) {
+        R(genome <- import(g))
+    } else {
+        R(genome <- Seqinfo(genome=g))
+    }
+    pushR(env=parent.frame())
+}
+
+intersectPairs <- function(is_grl_a, is_grl_b, ignore.strand,
+                           strict.strand=FALSE)
+{
+    ignore.strand <- ignore.strand
+    .pintersect <- if (is_grl_a && is_grl_b) quote(intersect)
+                   else quote(pintersect)
+    if (strict.strand) {
+        .R(.pintersect(pairs, ignore.strand=ignore.strand, strict.strand=TRUE))
+    } else {
+        .R(.pintersect(pairs, ignore.strand=ignore.strand))
+    }
+}
+
+overlapWidth <- function(is_grl_a, is_grl_b, ...)
+{
+    .pairInt <- intersectPairs(is_grl_a, is_grl_b, ...)
+    R(olap <- .pairInt)
+    pushR(env=parent.frame())
+    if (is_grl_a || is_grl_b)
+        .R(sum(width(olap)))
+    else .R(width(olap))
+}
+
+restrictByFraction <- function(f, F, r, e, have_f, have_F,
+                               is_grl_a, is_grl_b, ...)
+{
+    f <- f; F <- F; r <- r; e <- e
+    if (have_f && have_F && r) {
+        stop("only one of -f and -F may be specified with -r")
+    }
+    .width_olap <- overlapWidth(is_grl_a, is_grl_b, ...)
+    if (r) {
+        if (have_f) {
+            F <- f
+            have_F <- TRUE
+        } else {
+            f <- F
+            have_f <- TRUE
+        }
+    }
+    if (have_f) {
+        .width_first <- if (is_grl_a) .R(sum(width(first(pairs))))
+                        else .R(width(first(pairs)))
+        .keep <- .R(.width_olap / .width_first >= f)
+    }
+    if (have_F) {
+        .width_second <- if (is_grl_b) .R(sum(width(second(pairs))))
+                         else .R(width(second(pairs)))
+        .keep_F <- .R(.width_olap / .width_second >= F)
+        if (have_f) {
+            .keep <- if (e) .R(.keep | .keep_F) else .R(.keep & .keep_F)
+        } else {
+            .keep <- .keep_F
+        }
+    }
+    R(keep <- .keep)
+    pushR(env=parent.frame())
+}
+
+.findOverlaps <- function(pairs, f, r, e) {
+    .findOverlaps <-
+        if (pairs) {
+            .R(pairs <- findOverlapPairs(.gr_a_o, .gr_b_o,
+                                         ignore.strand=ignore.strand),
+               parent.frame())
+        } else {
+            .R(hits <- findOverlaps(.gr_a_o, .gr_b_o,
+                                    ignore.strand=ignore.strand),
+               parent.frame())
+        }
+    ans <- if (f == 1.0 && !e) {
+               .findOverlaps[[3L]]$type <- if (r) "equal" else "within"
+               FALSE
+           } else !identical(f, formals(R_bedtools_intersect)$f)
+    pushR(.findOverlaps, parent.frame())
+    ans
 }
 
 R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
@@ -164,13 +293,8 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
                   length(names) == length(b))
     }
     
-    haveGenomeFile <- identical(file_ext(g), "genome")
-    if (haveGenomeFile) {
-        R(genome <- import(g))
-    } else {
-        R(genome <- g)
-    }
-
+    importGenome(g)
+    
     a <- normA(a)
     b <- normB(b)
     
@@ -200,12 +324,7 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
 
     have_f <- !identical(f, formals(sys.function())$f)
     have_F <- !identical(F, formals(sys.function())$F)
-    if (!have_f && r) {
-        stop("-r requires -f")
-    }
     
-    fracRestriction <- have_f || have_F
-
     .gr_a_ans <- prepAnsRanges(a, bed)
     .gr_b_ans <- prepAnsRanges(b, bed)
 
@@ -218,14 +337,8 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
     
     needPairs <- !(u || c || v || loj)
     needHits <- !needPairs || olapNotAns_a || olapNotAns_b
-    if (fracRestriction || !(u || c || v)) {
-        if (needHits) {
-            R(hits <- findOverlaps(.gr_a_o, .gr_b_o,
-                                   ignore.strand=ignore.strand))
-        } else {
-            R(pairs <- findOverlapPairs(.gr_a_o, .gr_b_o,
-                                        ignore.strand=ignore.strand))
-        }
+    if (have_f || have_F || !(u || c || v)) {
+        have_f <- .findOverlaps(pairs=!needHits, f, r, e)
     }
 
     is_grl_a <- split && (isBed(a) || isBam(a))
@@ -235,44 +348,16 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
                    else quote(pintersect)
     .pairInt <- .R(.pintersect(pairs, ignore.strand=ignore.strand))
 
-    overlapWidth <- function() {
-        R(olap <- .pairInt, parent.frame())
-        if (is_grl_a || is_grl_b)
-            .R(sum(width(olap)))
-        else .R(width(olap))
-    }
-    
-    if (fracRestriction) {
+    if (have_f || have_F) {
         if (needHits) {
             R(pairs <- Pairs(.gr_a_o, .gr_b_o, hits=hits))
         }
-        .width_olap <- overlapWidth()
-        if (r) {
-            F <- f
-            have_F <- TRUE
-        }
-        if (have_f) {
-            .width_first <- if (is_grl_a) .R(sum(width(first(pairs))))
-                            else .R(width(first(pairs)))
-            .keep <- .R(.width_olap / .width_first >= f)
-        }
-        if (have_F) {
-            .width_second <- if (is_grl_b) .R(sum(width(second(pairs))))
-                             else .R(width(second(pairs)))
-            .keep_F <- .R(.width_olap / .width_second >= F)
-            if (have_f) {
-                .keep <- if (e) .R(.keep | .keep_F) else .R(.keep & .keep_F)
-            } else {
-                .keep <- .keep_F
-            }
-        }
-        if (fracRestriction) {
-            R(keep <- .keep)
-            if (needHits) {
-                R(hits <- hits[keep])
-            } else {
-                R(pairs <- pairs[keep])
-            }
+        restrictByFraction(f, F, r, e, have_f, have_F, is_grl_a, is_grl_b,
+                           ignore.strand)
+        if (needHits) {
+            R(hits <- hits[keep])
+        } else {
+            R(pairs <- pairs[keep])
         }
     }
 
@@ -362,7 +447,7 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
             } else {
                 R(pairs <- Pairs(.gr_a_o, .gr_b_o, hits=hits))
             }
-            overlapWidth()
+            overlapWidth(is_grl_a, is_grl_b, ignore.strand)
         } else {
             .R(width(.pintersect(ans, ignore.strand=ignore.strand)))
         }
@@ -403,9 +488,10 @@ BEDTOOLS_INTERSECT_DOC <-
        -s  Force strandedness. That is, only report hits in B that overlap A on the same strand. By default, overlaps are reported without respect to strand.
        -S  Require different strandedness. That is, only report hits in B that overlap A on the _opposite_ strand. By default, overlaps are reported without respect to strand.
        --split  Treat split BAM (i.e., having an 'N' CIGAR operation) or BED12 entries as distinct BED intervals.
-       -g <path> Specify a genome file or identifier that defines the order and size of the sequences.
+       -g <path>  Specify a genome file or identifier that defines the order and size of the sequences.
        --header  Print the header from the A file prior to results.
-       --names <name,...> When using multiple databases (-b), provide an alias for each that will appear instead of a fileId when also printing the DB record.
+       --names <name,...>  When using multiple databases (-b), provide an alias for each that will appear instead of a fileId when also printing the DB record.
        --filenames  When using multiple databases (-b), show each complete filename instead of a fileId when also printing the DB record.
        --sortout  When using multiple databases (-b), sort the output DB hits for each record."
 
+do_bedtools_intersect <- make_do(R_bedtools_intersect)

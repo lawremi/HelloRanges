@@ -5,9 +5,6 @@
 ### Based on tests from bedtools (C) 2016 Aaron Quinlan et al.
 ###
 
-library(HelloRanges)
-library(RUnit)
-
 test_closest <- function() {
     setwd("data/closest")
 

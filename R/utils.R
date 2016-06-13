@@ -31,16 +31,16 @@ substituteArgs <- function(expr, env = parent.frame(2L)) {
     eval(call("substitute", expr), env)
 }
 
-.R <- function(expr) {
-    substituteArgs(substitute(expr))
+.R <- function(expr, env = parent.frame()) {
+    substituteArgs(substitute(expr), env)
 }
 
 R <- function(expr, env = parent.frame()) {
     pushR(substituteArgs(substitute(expr), env), env)
 }
 
-pushR <- function(code = getR(parent.frame()), env) {
-    env$.code <- as.call(c(quote(`{`), as.list(env$.code[-1L]), code))
+pushR <- function(code = getR(parent.frame()), env = parent.frame()) {
+    env$.code <- as.call(c(quote(`{`), getR(env), code))
     env$.code
 }
 
@@ -61,7 +61,7 @@ GenomeFile <- function(resource) {
 setMethod("import", "GenomeFile", function (con, format, text, ...) {
     if (!missing(format))
         checkArgFormat(con, format)
-    df <- read.table(con, sep="\t", colClasses=c("character", "integer"),
+    df <- read.table(path(con), sep="\t", colClasses=c("character", "integer"),
                      col.names=c("seqnames", "seqlengths"))
     genome <- file_path_sans_ext(basename(path(con)))
     with(df, Seqinfo(seqnames, seqlengths, genome=genome))
@@ -126,3 +126,44 @@ setMethods("pair",
                seqlevels(y) <- union(seqlevels(NA.VALUE), seqlevels(y))
                callNextMethod(x, y, by, all.x, NA.VALUE)
            })
+
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+### mode/antimode
+###
+
+## Child and parent partition the same space, but the child
+## breakpoints are nested within the parent breakpoints, i.e., for
+## every parent breakpoint, there is a matching child breakpoint.
+toparent <- function(child, parent) {
+    PartitioningByEnd(findInterval(end(PartitioningByEnd(parent)),
+                                   end(PartitioningByEnd(child))))
+}
+
+setGeneric("distmode", function(x, anti=FALSE) standardGeneric("distmode"),
+           signature = "x")
+
+setMethod("distmode", "CompressedAtomicList", function(x, anti=FALSE) {
+    g <- IRanges:::subgrouping(x)
+    pg <- PartitioningByEnd(g)
+    counts <- relist(lengths(g), toparent(g, x))
+    m <- if (anti) which.min(counts, global=TRUE)
+         else which.max(counts, global=TRUE)
+    unlist(x, use.names=FALSE)[unlist(g)[end(pg)[m]]]
+})
+
+setMethod("distmode", "SimpleList", function(x, anti=FALSE) {
+    unlist(endoapply(x, distmode, anti=anti))
+})
+
+setMethod("distmode", "vector", function(x, anti=FALSE) {
+    sm <- selfmatch(x)
+    counts <- tabulate(sm)
+    pos <- if (anti) which.min(counts) else which.max(counts)
+    x[pos]
+})
+
+setMethod("distmode", "factor", function(x, anti=FALSE) {
+    counts <- table(x)
+    names(if (anti) which.min(counts) else which.max(counts))
+})
+
