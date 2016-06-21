@@ -14,7 +14,7 @@ Imports: docopt
 Depends:
     methods,
     BiocGenerics,
-    S4Vectors (>= 0.11.4),
+    S4Vectors (>= 0.11.6),
     IRanges (>= 2.7.8),
     GenomicRanges (>= 1.25.5),
     Biostrings (>= 2.41.3),
