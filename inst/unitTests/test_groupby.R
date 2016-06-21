@@ -6,7 +6,7 @@
 ###
 
 test_groupby <- function() {
-    setwd("data/groupby")
+    setwd(system.file("unitTests", "data", "groupby", package="HelloRanges"))
 
     a <- import("values3.header.bed")
     exp <- aggregate(unstrand(a), score.sum = sum(score))
@@ -15,7 +15,7 @@ test_groupby <- function() {
 
     indexTabix(bgzip("a_vcfSVtest.vcf", overwrite=TRUE), "vcf")
     a <- import("a_vcfSVtest.vcf.bgz")
-    exp <- aggregate(granges(vcf_a), ~seqnames + REF, QUAL.mean = mean(QUAL))
+    exp <- aggregate(granges(a), ~seqnames + REF, QUAL.mean = mean(QUAL))
     r <- bedtools_groupby("-i a_vcfSVtest.vcf.bgz -g 1,4 -c 6 -o mean")
     checkIdentical(exp, eval(r))
 }

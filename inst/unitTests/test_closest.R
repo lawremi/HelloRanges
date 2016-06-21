@@ -6,7 +6,7 @@
 ###
 
 test_closest <- function() {
-    setwd("data/closest")
+    setwd(system.file("unitTests", "data", "closest", package="HelloRanges"))
 
     addDotSeq <- function(x) {
         seqlevels(x) <- c(".", seqlevels(x))

@@ -9,18 +9,19 @@ normG <- function(i, g) {
     as.formula(paste("~", paste(cn, collapse="+")))
 }
 
-R_bedtools_groupby <- function(i, g = 1:3, c, o="sum")
+R_bedtools_groupby <- function(i, g = 1:3, c, o="sum", delim=",")
 {
-    stopifnot(isSingleString(i),
+    stopifnot(isSingleString(i) || hasRanges(i),
               isSingleString(g) || (is.numeric(g) && !anyNA(g) && all(g > 0L)),
               isSingleString(c) || (is.numeric(c) && !anyNA(c) && all(c > 0L)),
-              isSingleString(o))
+              isSingleString(o),
+              isSingleString(delim))
 
-    co <- normCandO(i, c, o)
+    co <- normCandO(i, c, o, delim)
 
     R(genome <- Seqinfo(genome=NA_character_))
 
-    .gr_i <- importA(i, cn)
+    .gr_i <- importA(i, co$cn)
     if (isVcf(i)) {
         .gr_i <- .R(granges(expand(.gr_i)))
     }
@@ -71,6 +72,9 @@ BEDTOOLS_GROUPBY_DOC <-
 
            E.g., -c 5,4,6 -o sum,mean,count will give the sum of column 5,
            the mean of column 4, and the count of column 6.
-           The order of output cols matches the ordering given in the command."
+           The order of output cols matches the ordering given in the command.
+       --delim <DELIM>  Specify a custom delimiter for the collapse operation
+               Example: -delim \"|\"
+               [default: ,]"
 
 do_bedtools_groupby <- make_do(R_bedtools_groupby)

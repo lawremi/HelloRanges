@@ -9,17 +9,22 @@ Description: Translates bedtools command-line invocations to R code
              infrastructure. This is intended to educate novice
              Bioconductor users and to compare the syntax and
              semantics of the two frameworks.
-License: GNE_LICENSE
+License: GPL (>= 2)
 Imports: docopt
 Depends:
     methods,
     BiocGenerics,
     S4Vectors (>= 0.11.4),
-    IRanges (>= 2.7.8)),
+    IRanges (>= 2.7.8),
     GenomicRanges (>= 1.25.5),
     Biostrings (>= 2.41.3),
     BSgenome,
     GenomicFeatures,
     VariantAnnotation (>= 1.19.3),
     GenomicAlignments,
-    rtracklayer (>= 1.33.7)
+    rtracklayer (>= 1.33.7),
+    GenomeInfoDb
+Suggests:
+    HelloRangesData,
+    BiocStyle
+    

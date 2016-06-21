@@ -8,13 +8,21 @@ bedtools_intersect <- function(cmd = "--help") {
 }
 
 stdinFile <- function() {
-    message("Assuming BED format for 'stdin'; modify return value if otherwise")
+    message("Assuming BED format for 'stdin'")
     .R(BEDFile("stdin"))
 }
 
+pipeFile <- function(cmd) {
+    message("Assuming BED format for piped input")
+    cmd <- cmd
+    .R(BEDFile(pipe(cmd)))
+}
+
 normA <- function(a) {
-    if (a == "stdin")
+    if (identical(a, "stdin"))
         stdinFile()
+    else if (is.character(a) && startsWith(a, "<"))
+        pipeFile(substring(a, 2))
     else a
 }
 
@@ -22,11 +30,21 @@ normB <- function(b) {
     normBToken <- function(bi) {
         if (bi == "stdin")
             stdinFile()
+        else if (startsWith(bi, "<"))
+            pipeFile(substring(bi, 2))
         else if (grepl("*", bi, fixed=TRUE))
             .R(Sys.glob(bi))
         else bi
     }
-    b <- strsplit(b, ",", fixed=TRUE)[[1L]]
+    if (hasRanges(b)) {
+        return(b)
+    }
+    if (is(b, "List")) {
+        return(stack(b, "b"))
+    }
+    if (isSingleString(b)) {
+        b <- strsplit(b, ",", fixed=TRUE)[[1L]]
+    }
     if (length(b) == 1L)
         normBToken(b)
     else as.call(c(quote(c), lapply(b, normBToken)))
@@ -47,12 +65,12 @@ isResource <- function(x)
 importA <- function(a, extraCols=character(0L), ...) {
     a <- a
     .gr_a <- objectName(a)
-    if (isResource(a)) {
+    if (isResource(a) || is.call(a)) {
         args <- c(importExtraColsArgs(a, extraCols), list(...))
         .import <- as.call(c(quote(import), a, genome=quote(genome), args))
         R(.gr_a <- .import)
     } else {
-        .a <- quote(a)
+        .a <- evalq(match.call()$a, parent.frame())
         R(.gr_a <- .a)
     }
     pushR(env=parent.frame())
@@ -60,12 +78,13 @@ importA <- function(a, extraCols=character(0L), ...) {
 }
 
 importB <- function(b, names=NULL, filenames=FALSE, extraCols=character(0L),
-                    ...)
+                    beforeStack = NULL, ...)
 {
     bval <- b
     .gr_b <- objectName(b)
     args <- c(importExtraColsArgs(b, extraCols), list(...))
-    if (is.character(b) || is.name(b) || b[[1L]] == quote(BEDFile)) {
+    if (is.character(b) || is.name(b) ||
+        (is.call(b) && b[[1L]] == quote(BEDFile))) {
         .import <- as.call(c(quote(import), b, genome=quote(genome), args))
         R(.gr_b <- .import)
     }
@@ -77,14 +96,18 @@ importB <- function(b, names=NULL, filenames=FALSE, extraCols=character(0L),
             nms <- strsplit(names, ",", fixed=TRUE)[[1L]]
             R(names(b) <- nms)
         }
-        .import <- as.call(c(call("lapply", b, quote(import),
-                                  genome=quote(genome)),
-                             args))
+        .import <- .R(lapply(b, import, genome=genome))
+        .import[names(args)] <- args
         R(bl <- List(.import))
+        .bl <- if (!is.null(beforeStack))
+                   .R(beforeStack(bl))
+               else quote(bl)
+        index.var <- deparse(substitute(b))
 ### FIXME: assumes list elements are of the same format and same "shape"
-        R(.gr_b <- stack(bl, "b"))
+        R(.gr_b <- stack(.bl, index.var))
     } else {
-        R(.gr_b <- b)
+        .b <- evalq(match.call()$b, parent.frame())
+        R(.gr_b <- .b)
     }
     pushR(env=parent.frame())
     .gr_b
@@ -98,13 +121,13 @@ getFormat <- function(x) {
         sub("file$", "", tolower(x[[1L]]))
     } else if (is(x, "RTLFile") || is(x, "RsamtoolsFile")) {
         tolower(sub("File$", "", class(x)))
-    } else {
+    } else if (is.character(x)) {
         file_ext(sub("[0-9]$", "", sub("\\.b?gz$", "", x)))
     }
 }
 
 hasFormat <- function(x, format) {
-    getFormat(x) == format
+    identical(getFormat(x), format)
 }
 
 isBam <- function(x) {
@@ -168,12 +191,17 @@ objectName <- function(x) {
 }
 
 importGenome <- function(g) {
-    g <- g
-    haveGenomeFile <- identical(file_ext(g), "genome")
-    if (haveGenomeFile) {
-        R(genome <- import(g))
+    if (is(g, "Seqinfo")) {
+        .g <- evalq(match.call()$g, parent.frame())
+        R(genome <- .g)
     } else {
-        R(genome <- Seqinfo(genome=g))
+        g <- g
+        haveGenomeFile <- identical(file_ext(g), "genome")
+        if (haveGenomeFile) {
+            R(genome <- import(g))
+        } else {
+            R(genome <- Seqinfo(genome=g))
+        }
     }
     pushR(env=parent.frame())
 }
@@ -237,7 +265,7 @@ restrictByFraction <- function(f, F, r, e, have_f, have_F,
     pushR(env=parent.frame())
 }
 
-.findOverlaps <- function(pairs, f, r, e) {
+.findOverlaps <- function(f, r, e, pairs) {
     .findOverlaps <-
         if (pairs) {
             .R(pairs <- findOverlapPairs(.gr_a_o, .gr_b_o,
@@ -256,6 +284,10 @@ restrictByFraction <- function(f, F, r, e, have_f, have_F,
     ans
 }
 
+hasRanges <- function(x) {
+    hasMethod(ranges, class(x))
+}
+
 R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
                                  wa=FALSE, wb=FALSE, loj=FALSE, wo=FALSE,
                                  wao=FALSE, u=FALSE, c=FALSE, v=FALSE,
@@ -264,8 +296,8 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
                                  header=FALSE, # ignored
                                  names=NULL, filenames=FALSE, sortout=FALSE)
 {
-    stopifnot(isSingleString(a),
-              is.character(b), !anyNA(b), length(b) >= 1L,
+    stopifnot(isSingleString(a) || hasRanges(a),
+              (is.character(b) && !anyNA(b) && length(b) >= 1L) || hasRanges(b),
               isTRUEorFALSE(ubam),
               isTRUEorFALSE(bed),
               isTRUEorFALSE(wa),
@@ -291,6 +323,10 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
     if (!is.null(names)) {
         stopifnot(is.character(names), !anyNA(names),
                   length(names) == length(b))
+    }
+
+    if (ubam) {
+        stop("'ubam' is not yet supported")
     }
     
     importGenome(g)
@@ -324,6 +360,7 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
 
     have_f <- !identical(f, formals(sys.function())$f)
     have_F <- !identical(F, formals(sys.function())$F)
+    fracRestriction <- have_f || have_F
     
     .gr_a_ans <- prepAnsRanges(a, bed)
     .gr_b_ans <- prepAnsRanges(b, bed)
@@ -364,7 +401,7 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
     if (c) {
         rm(c)
         R(ans <- .gr_a_ans)
-        .c <- if (fracRestriction) {
+        .c <- if (have_f || have_F) {
             .R(countQueryHits(hits))
         } else {
             .R(countOverlaps(.gr_a_o, .gr_b_o,
@@ -440,7 +477,9 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
     
     if (wo) {
         .o <- if (fracRestriction && !loj) {
-            .width_olap
+                  if (is_grl_a || is_grl_b)
+                      .R(sum(width(olap))[keep])
+                  else .R(width(olap)[keep])
         } else if (loj || olapNotAns_a || olapNotAns_b) {
             if (loj) {
                 R(pairs <- pair(.gr_a_o, .gr_b_o, hits, all.x=TRUE))
@@ -472,7 +511,7 @@ BEDTOOLS_INTERSECT_DOC <-
        -a <FILE>  BAM/BED/GFF/VCF file A. Each feature in A is compared to B in search of overlaps. Use 'stdin' if passing A with a UNIX pipe.
        -b <FILE1,...> One or more BAM/BED/GFF/VCF file(s) B. Use 'stdin' if passing B with a UNIX pipe. -b may be followed with multiple databases and/or wildcard (*) character(s).
        --ubam  Write uncompressed BAM output. The default is write compressed BAM output.
-       --bed  When using BAM input (-abam), write output as BED. The default is to write output in BAM when using -abam.
+       --bed  When using BAM input, write output as BED. The default is to write output in BAM.
        --wa  Write the original entry in A for each overlap.
        --wb  Write the original entry in B for each overlap. Useful for knowing what A overlaps. Restricted by -f and -r.
        --loj  Perform a 'left outer join'. That is, for each feature in A report each overlap with B. If no overlaps are found, report a NULL feature for B.

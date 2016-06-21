@@ -6,8 +6,8 @@
 ###
 
 test_coverage <- function() {
-    setwd("data/coverage")
-
+    setwd(system.file("unitTests", "data", "coverage", package="HelloRanges"))
+    
     a <- import("a.bed")
     b <- import("b.bed")
     genome <- import("test.genome")

@@ -8,7 +8,7 @@ bedtools_complement <- function(cmd = "--help") {
 }
 
 R_bedtools_complement <- function(i, g) {
-    stopifnot(isSingleString(i),
+    stopifnot(isSingleString(i) || hasRanges(i),
               isSingleString(g))
 
     importGenome(g)
@@ -17,7 +17,7 @@ R_bedtools_complement <- function(i, g) {
     .gr_i <- importA(i)
     .gr_i_o <- prepOverlapRanges(i, FALSE)
 
-    R(ans <- gaps(unstrand(.gr_i_o)))
+    R(ans <- setdiff(as(seqinfo(.gr_i), "GRanges"), unstrand(.gr_i_o)))
     R(ans)
 }
 

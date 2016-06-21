@@ -60,7 +60,7 @@ GenomeFile <- function(resource) {
 
 setMethod("import", "GenomeFile", function (con, format, text, ...) {
     if (!missing(format))
-        checkArgFormat(con, format)
+        rtracklayer:::checkArgFormat(con, format)
     df <- read.table(path(con), sep="\t", colClasses=c("character", "integer"),
                      col.names=c("seqnames", "seqlengths"))
     genome <- file_path_sans_ext(basename(path(con)))

@@ -27,8 +27,8 @@ R_bedtools_closest <- function(a, b, s=FALSE, S=FALSE,
     t <- match.arg(t)
     mdb <- match.arg(mdb)
     
-    stopifnot(isSingleString(a),
-              is.character(b), !anyNA(b), length(b) >= 1L,
+    stopifnot(isSingleString(a) || hasRanges(a),
+              (is.character(b) && !anyNA(b) && length(b) >= 1L) || hasRanges(b),
               isTRUEorFALSE(s),
               isTRUEorFALSE(S), !(s && S),
               isTRUEorFALSE(d), !d || D == "none",
@@ -182,14 +182,14 @@ R_bedtools_closest <- function(a, b, s=FALSE, S=FALSE,
             R(.hits <- .hits[with(ans, .restriction)])
             R(.breakTies)
             R(ans <- pair(.gr_a, .gr_b, .hits, all.x=TRUE))
-            R(mcols(ans) <- distance(ans))
+            R(mcols(ans)$distance <- distance(ans))
         }
     }
 
     if (loopOverB) {
         .code[[length(.code)]] <- .code[[length(.code)]][[3]]
-        args <- setNames(alist(bi=), as.character(.gr_b))
-        loopFun <- as.function(c(args, list(.code)))
+        args <- as.pairlist(setNames(alist(bi=), as.character(.gr_b)))
+        loopFun <- as.call(c(quote(`function`), list(args), list(.code)))
         .code <- .preamble
         rm(b)
         R(ans <- unlist(List(lapply(split(.gr_b_orig, ~ b), loopFun)),

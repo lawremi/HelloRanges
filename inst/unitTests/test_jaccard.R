@@ -6,7 +6,7 @@
 ###
 
 test_jaccard <- function() {
-    setwd("data/jaccard")
+    setwd(system.file("unitTests", "data", "jaccard", package="HelloRanges"))
 
     exp <- DataFrame(intersection=110L, union=110L, jaccard=1,
                      n_intersections=2L)

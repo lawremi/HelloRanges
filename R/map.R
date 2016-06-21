@@ -13,10 +13,10 @@ bedtools_map <- function(cmd = "--help") {
 R_bedtools_map <- function(a, b, c="5", o="sum",
                            f=1e-9, F=1e-9, r=FALSE, e=FALSE, s=FALSE, S=FALSE,
                            header=FALSE, # ignored
-                           split=FALSE, g=NA_character_)
+                           split=FALSE, g=NA_character_, delim=",")
 {
-    stopifnot(isSingleString(a),
-              is.character(b), !anyNA(b), length(b) >= 1L,
+    stopifnot(isSingleString(a) || hasRanges(a),
+              (is.character(b) && !anyNA(b) && length(b) >= 1L) || hasRanges(b),
               is.numeric(c) || isSingleString(c),
               isSingleString(o),
               isSingleNumber(f), f > 0, f <= 1,
@@ -27,14 +27,15 @@ R_bedtools_map <- function(a, b, c="5", o="sum",
               isTRUEorFALSE(S), !(s && S),
               isTRUEorFALSE(split),
               isSingleStringOrNA(g),
-              isTRUEorFALSE(header))
+              isTRUEorFALSE(header),
+              isSingleString(delim))
 
     importGenome(g)
     
     a <- normA(a)
     b <- normB(b)
 
-    co <- normCandO(b, c, o)
+    co <- normCandO(b, c, o, delim)
 
     .gr_a <- importA(a)
     .gr_b <- importB(b, extraCols=co$cn)
@@ -65,7 +66,9 @@ R_bedtools_map <- function(a, b, c="5", o="sum",
     }
 
     R(ans <- .gr_a)
-    
+
+### NOTE: the expr table(b) would be similar to
+###    "bedtools_annotate -counts", "bedtools_multicov" and "bedtools_tag"
     .agg <- .aggregateCall(.gr_b, quote(hits), co$exprs, drop=FALSE)
     R(mcols(ans) <- .agg)
 
@@ -99,10 +102,13 @@ BEDTOOLS_MAP_DOC <-
      -F <frac>  Minimum overlap required as a fraction of B. [default: 1e-9].
      -r  Require that the fraction of overlap be reciprocal for A and B. In other words, if -f is 0.90 and -r is used, this requires that B overlap at least 90% of A and that A also overlaps at least 90% of B.
      -e  Require that the minimum fraction be satisfied for A _OR_ B. In other words, if -e is used with -f 0.90 and -F 0.10 this requires that either 90% of A is covered OR 10% of B is covered. Without -e, both fractions would have to be satisfied.
-     -s  Force “strandedness”. That is, only report hits in B that overlap A on the same strand. By default, overlaps are reported without respect to strand.
+     -s  Force \"strandedness\". That is, only report hits in B that overlap A on the same strand. By default, overlaps are reported without respect to strand.
      -S  Require different strandedness. That is, only report hits in B that overlap A on the _opposite_ strand. By default, overlaps are reported without respect to strand.
 -header	 Print the header from the A file prior to results.
- -split	 Treat “split” BAM (i.e., having an “N” CIGAR operation) or BED12 entries as distinct BED intervals. When using -sorted, memory usage remains low even for very large files.
-     -g	 Specify a genome file or identifier the defines the expected chromosome order in the input files."
+ -split	 Treat \"split\" BAM (i.e., having an \"N\" CIGAR operation) or BED12 entries as distinct BED intervals. When using -sorted, memory usage remains low even for very large files.
+     -g	 Specify a genome file or identifier the defines the expected chromosome order in the input files.
+--delim <DELIM>  Specify a custom delimiter for the collapse operation
+                 Example: -delim \"|\"
+                 [default: ,]"
 
 do_bedtools_map <- make_do(R_bedtools_map)

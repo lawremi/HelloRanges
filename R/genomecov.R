@@ -17,7 +17,7 @@ R_bedtools_genomecov <- function(i, g=NA_character_,
     max <- if (!is.null(max)) as.integer(max)
     fs <- if (!is.null(fs)) as.integer(fs)
     
-    stopifnot(isSingleString(i),
+    stopifnot(isSingleString(i) || hasRanges(i),
               isSingleStringOrNA(g),
               isTRUEorFALSE(d),
               isTRUEorFALSE(dz),
@@ -75,7 +75,7 @@ R_bedtools_genomecov <- function(i, g=NA_character_,
         R(mcols(tablist)$len <- lengths(cov, use.names=FALSE))
         R(covhist <- stack(tablist, "seqnames", "count", "coverage"))
         R(margin <- aggregate(covhist, ~ coverage,
-                              count = sum(NumericList(count))))
+                              count = sum(NumericList(count)))[-1L])
         R(margin <- DataFrame(seqnames=Rle("genome"), margin,
                               len=sum(as.numeric(lengths(cov)))))
         R(covhist <- rbind(covhist, margin))
@@ -108,15 +108,14 @@ BEDTOOLS_GENOMECOV_DOC <-
     --bga  Report depth as a GRanges, as above (i.e., -bg).
            However with this option, regions with zero coverage are also
            reported.
-  --split  Treat “split” BAM or BED12 entries as distinct BED intervals when
-           computing coverage. For BAM files, this uses the CIGAR “N” and “D”
+  --split  Treat \"split\" BAM or BED12 entries as distinct BED intervals when
+           computing coverage. For BAM files, this uses the CIGAR 'N' and 'D'
            operations to infer the blocks for computing coverage.
            For BED12 files, this uses the BlockCount, BlockStarts, and
            BlockEnds fields (i.e., columns 10,11,12).
  --strand <strand>  Calculate coverage of intervals from a specific strand.
-           With BED files, requires at least 6 columns (strand is column 6).
-       -5  Calculate coverage of 5’ positions (instead of entire interval).
-       -3  Calculate coverage of 3’ positions (instead of entire interval).
+       -5  Calculate coverage of 5' positions (instead of entire interval).
+       -3  Calculate coverage of 3' positions (instead of entire interval).
     --max <max>  Combine all positions with a depth >= max into a single bin in
            the histogram.
   --scale <scale>  Scale the coverage by a constant factor.

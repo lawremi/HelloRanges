@@ -7,16 +7,16 @@ bedtools_slop <- function(cmd = "--help") {
     do_R_call(R_bedtools_slop, BEDTOOLS_SLOP_DOC, cmd)
 }
 
-R_bedtools_slop <- function(i, b = 0L, l = 0L, r = 0L, s = FALSE,
+R_bedtools_slop <- function(i, b = 0, l = 0, r = 0, s = FALSE,
                             pct = FALSE, g = NULL, header = FALSE)
 {
-    stopifnot(isSingleString(i),
+    stopifnot(isSingleString(i) || hasRanges(i),
               isSingleNumber(b), b >= 0L,
               isSingleNumber(l), l >= 0L,
               isSingleNumber(r), r >= 0L,
               xor(!(missing(l) && missing(r)), !missing(b)),
               isTRUEorFALSE(s), !(s && b),
-              isTRUEorFALSE(pct), !(pct && b))
+              isTRUEorFALSE(pct))
     
     importGenome(g)
     
@@ -25,6 +25,9 @@ R_bedtools_slop <- function(i, b = 0L, l = 0L, r = 0L, s = FALSE,
     .gr_i_o <- prepOverlapRanges(i, FALSE)
 
     if (b) {
+        if (pct) {
+            b <- .R(width(.gr_i_o) * b)
+        }
        R(ans <- .gr_i_o + b)
     } else {
         ignore.strand <- !s
@@ -57,7 +60,7 @@ BEDTOOLS_SLOP_DOC <-
        -l <size> The number of base pairs to subtract from the start coordinate. Integer.
        -r <size> The number of base pairs to add to the end coordinate. Integer.
        -s  Define -l and -r based on strand. For example. if used, -l 500 for a negative-stranded feature, it will add 500 bp to the end coordinate.
-    --pct  Define -l and -r as a fraction of the feature’s length. E.g. if used on a 1000bp feature, -l 0.50, will add 500 bp “upstream”. Default = false.
+    --pct  Define -l and -r as a fraction of the feature's length. E.g. if used on a 1000bp feature, -l 0.50, will add 500 bp \"upstream\". Default = false.
        -g <path>  Specify a genome file or identifier that defines the order and size of the sequences.
  --header  Print the header from the input file prior to results.
 "

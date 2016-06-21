@@ -6,7 +6,7 @@
 ###
 
 test_merge <- function() {
-    setwd("data/merge")
+    setwd(system.file("unitTests", "data", "merge", package="HelloRanges"))
 
     a <- import("a.bed")
 
@@ -84,5 +84,5 @@ test_merge <- function() {
     exp <- reduce(granges(bam), with.revmap=TRUE, ignore.strand=TRUE)
     mcols(exp) <- aggregate(bam, mcols(exp)$revmap, mapq.mean = mean(mapq))
     r <- bedtools_merge("-i fullFields.bam -c 5 -o mean")
-    checkIdentical(exp, eval(r))  
+    checkIdentical(exp, eval(r))
 }

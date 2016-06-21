@@ -6,7 +6,7 @@
 ###
 
 test_genomecov <- function() {
-    setwd("data/genomecov")
+    setwd(system.file("unitTests", "data", "genomecov", package="HelloRanges"))
     
     genome <- import("test.genome")
     y <- import("y.bed", genome=genome)
@@ -47,7 +47,7 @@ test_genomecov <- function() {
     exp <- DataFrame(seqnames=Rle(c("1", "2", "3", "genome"),
                                   c(3L, 1L, 1L, 3L)),
                      coverage = factor(c(0:2, 0, 0, 0:2)),
-                     count = c(93, 4, 3, rep(100, 5)),
+                     count = c(93, 4, 3, rep(100, 2), 293, 4, 3),
                      len = c(rep(100, 5), rep(300, 3)))
     exp <- within(exp, fraction <- count / len)
     r <- bedtools_genomecov("-i y.bam")

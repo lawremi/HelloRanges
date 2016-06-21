@@ -6,7 +6,7 @@
 ###
 
 test_map <- function() {
-    setwd("data/map")
+    setwd(system.file("unitTests", "data", "map", package="HelloRanges"))
 
     a <- import("ivls.bed")
     b <- import("values.bed")
@@ -40,5 +40,5 @@ test_map <- function() {
                             name.collapse = unstrsplit(name, ","),
                             drop=FALSE)
     r <- bedtools_map("-a ivls2.bed -b values5.bed -c 4 -o collapse -f 0.7")
-    checkIdentical(exp, eval(r))    
+    checkIdentical(exp, eval(r))
 }

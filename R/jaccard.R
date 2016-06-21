@@ -14,8 +14,8 @@ R_bedtools_jaccard <- function(a, b,
                                s=FALSE, S=FALSE,
                                split=FALSE)
 {
-    stopifnot(isSingleString(a),
-              is.character(b), !anyNA(b), length(b) >= 1L,
+    stopifnot(isSingleString(a) || hasRanges(a),
+              (is.character(b) && !anyNA(b) && length(b) >= 1L) || hasRanges(b),
               isSingleNumber(f), f > 0, f <= 1,
               isSingleNumber(F), F > 0, F <= 1,
               isTRUEorFALSE(r),
@@ -46,8 +46,9 @@ R_bedtools_jaccard <- function(a, b,
 
     have_f <- !identical(f, formals(sys.function())$f)
     have_F <- !identical(F, formals(sys.function())$F)
-    
-    if (have_f || have_F) {
+
+    fracRestriction <- have_f || have_F
+    if (fracRestriction) {
         have_f <- .findOverlaps(pairs=TRUE, f, r, e)
         if (have_f || have_F) {
             restrictByFraction(f, F, r, e, have_f, have_F, is_grl_a, is_grl_b,

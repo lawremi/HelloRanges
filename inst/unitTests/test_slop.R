@@ -6,7 +6,7 @@
 ###
 
 test_slop <- function() {
-    setwd("data/slop")
+    setwd(system.file("unitTests", "data", "slop", package="HelloRanges"))
 
     genome <- import("tiny.genome")
     a <- import("a.bed", genome=genome)

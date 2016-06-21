@@ -14,8 +14,8 @@ R_bedtools_coverage <- function(a, b, hist=FALSE, d=FALSE, counts=FALSE,
                                 header=FALSE, #ignored
                                 sortout=FALSE)
 {
-    stopifnot(isSingleString(a),
-              is.character(b), !anyNA(b), length(b) >= 1L,
+    stopifnot(isSingleString(a) || hasRanges(a),
+              (is.character(b) && !anyNA(b) && length(b) >= 1L) || hasRanges(b),
               isTRUEorFALSE(hist),
               isTRUEorFALSE(d),
               isTRUEorFALSE(counts), !(d && counts), !(hist && (d || counts)),
@@ -73,7 +73,7 @@ R_bedtools_coverage <- function(a, b, hist=FALSE, d=FALSE, counts=FALSE,
                                     strand(.gr_a_o))))
         }
     } else {
-        have_f <- .findOverlaps(pairs=FALSE, f, r, e)
+        have_f <- .findOverlaps(f, r, e, pairs=FALSE)
         R(pairs <- Pairs(.gr_a_o, .gr_b_o, hits=hits))
         if (have_f || have_F) {
             restrictByFraction(f, F, r, e, have_f, have_F, FALSE, is_grl_b,
@@ -109,7 +109,7 @@ R_bedtools_coverage <- function(a, b, hist=FALSE, d=FALSE, counts=FALSE,
         R(covhist <- DataFrame(as.table(tab)))
         R(colnames(covhist) <- c("coverage", "a", "count"))
         R(len <- c(lengths(cov, use.names=FALSE), sum(lengths(cov))))
-        R(covhist$len <- rep(len, each=ncol(tab)))
+        R(covhist$len <- rep(len, each=nrow(tab)))
         R(covhist <- subset(covhist, count > 0L))
         R(covhist$fraction <- with(covhist, count / len))
         R(ans <- .gr_a)
@@ -141,7 +141,7 @@ BEDTOOLS_COVERAGE_DOC <-
        -d  Report the depth at each position in each A feature.
            Positions reported are one based. Each position and depth
            follow the complete A feature.
- --counts  Only report the count of overlaps, don’t compute fraction, etc.
+ --counts  Only report the count of overlaps, don't compute fraction, etc.
            Restricted by -f and -r.
        -f <frac>  Minimum overlap required as a fraction of A [default: 1e-9].
        -F <frac>  Minimum overlap required as a fraction of B [default: 1e-9].

@@ -11,7 +11,6 @@ COLNAMES_FOR_FORMAT <- list(
             "phase"),
     ## this subscripts into granges(vcf)
     vcf = c("seqnames", "start", "names", "REF", "ALT", "QUAL"),
-    ## only 'seqnames', 'start' and 'cigar' are actually available
     bam = c("names", NA, "seqnames", "start", "mapq", "cigar",
             "mrnm", "mpos", "isize", "seq", "qual")
 )
@@ -75,7 +74,7 @@ R_bedtools_merge <- function(i, s=FALSE, S=c("any", "+", "-"),
                              d=0L, c=NULL, o="sum", delim = ",")
 {
     S <- match.arg(S)
-    stopifnot(isSingleString(i),
+    stopifnot(isSingleString(i) || hasRanges(i),
               isTRUEorFALSE(s),
               isSingleNumber(d), d >= 0L,
               is.null(c) || is.numeric(c) || isSingleString(c),
@@ -104,17 +103,20 @@ R_bedtools_merge <- function(i, s=FALSE, S=c("any", "+", "-"),
         .gr_i_o <- .R(subset(.gr_i_o, strand == S))
     }
 
-    if (d > 0L) {
-        .extra <- d / 2L
-        .gr_i_o <- .R(.gr_i_o + .extra)
-    }
-    
-    if (is.null(c)) {
-        R(ans <- reduce(.gr_i_o, ignore.strand=ignore.strand))
-    } else {
-        R(ans <- reduce(.gr_i_o, ignore.strand=ignore.strand, with.revmap=TRUE))
+    .reduce <- .R(reduce(.gr_i_o, ignore.strand=ignore.strand))
+
+    if (!is.null(c)) {
+        .reduce$with.revmap <- TRUE
     }
 
+    if (d > 0L) {
+        .reduce$min.gapwidth <- d + 1L
+    }
+    
+    R(ans <- .reduce)
+    
+### NOTE: the grouping information is preserved, so this should cover
+### bedtools_cluster.
     if (!is.null(c)) {
         .agg <- .aggregateCall(.gr_i, quote(mcols(ans)$revmap), co$exprs,
                                drop=FALSE)

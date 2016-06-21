@@ -6,7 +6,8 @@
 ###
 
 test_makewindows <- function() {
-    setwd("data/makewindows")
+    setwd(system.file("unitTests", "data", "makewindows",
+                      package="HelloRanges"))
 
     input <- import("input.bed")
 
