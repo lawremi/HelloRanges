@@ -22,7 +22,7 @@ Depends:
     GenomicFeatures,
     VariantAnnotation (>= 1.19.3),
     GenomicAlignments,
-    rtracklayer (>= 1.33.7),
+    rtracklayer (>= 1.33.8),
     GenomeInfoDb
 Suggests:
     HelloRangesData,
