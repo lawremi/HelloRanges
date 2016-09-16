@@ -28,7 +28,8 @@ R_bedtools_closest <- function(a, b, s=FALSE, S=FALSE,
     mdb <- match.arg(mdb)
     
     stopifnot(isSingleString(a) || hasRanges(a),
-              (is.character(b) && !anyNA(b) && length(b) >= 1L) || hasRanges(b),
+              (is.character(b) && !anyNA(b) && length(b) >= 1L) ||
+                  hasRanges(b),
               isTRUEorFALSE(s),
               isTRUEorFALSE(S), !(s && S),
               isTRUEorFALSE(d), !d || D == "none",
@@ -113,7 +114,8 @@ R_bedtools_closest <- function(a, b, s=FALSE, S=FALSE,
             .aHits <- quote(queryHits)
         }
         if (!iu || deferRestriction) {
-            R(upstream <- .findUp(.gr_a_o, .gr_b_o, ignore.strand=ignore.strand,
+            R(upstream <- .findUp(.gr_a_o, .gr_b_o,
+                                  ignore.strand=ignore.strand,
                                   select="all"))
             hits <- c(hits, quote(upstream))
         }
@@ -203,12 +205,23 @@ BEDTOOLS_CLOSEST_DOC <-
     "Usage:
        bedtools_closest [options]
      Options:
-       -a <FILE> BAM/BED/GFF/VCF file A. Each feature in A is compared to B in search of overlaps. Use 'stdin' if passing A with a UNIX pipe.
-       -b <FILE1,...> One or more BAM/BED/GFF/VCF file(s) B. Use 'stdin' if passing B with a UNIX pipe. -b may be followed with multiple databases and/or wildcard (*) character(s).
-       -s  Require same strandedness. That is, find the closest feature in B that overlaps A on the _same_ strand. By default, overlaps are reported without respect to strand.
-       -S  Require opposite strandedness. That is, find the closest featurein B that overlaps A on the _opposite_ strand. By default, overlaps are reported without respect to strand.
-       -d  In addition to the closest feature in B, report its distance to A as an extra column. The reported distance for overlapping features will be 0.
-       -D <mode>  Like -d, report the closest feature in B, and its distance to A as an extra column. However unlike -d, -D conveys a notion of upstream that is useful with other arguments.
+       -a <FILE>  BAM/BED/GFF/VCF file A. Each feature in A is compared to B
+          in search of overlaps. Use 'stdin' if passing A with a UNIX pipe.
+       -b <FILE1,...>  One or more BAM/BED/GFF/VCF file(s) B. Use 'stdin' if
+          passing B with a UNIX pipe. -b may be followed with multiple
+          databases and/or wildcard (*) character(s).
+       -s  Require same strandedness. That is, find the closest feature in B
+           that overlaps A on the _same_ strand. By default, overlaps are
+           reported without respect to strand.
+       -S  Require opposite strandedness. That is, find the closest feature in
+           B that overlaps A on the _opposite_ strand. By default, overlaps are
+           reported without respect to strand.
+       -d  In addition to the closest feature in B, report its distance to A
+           as an extra column. The reported distance for overlapping features
+           will be 0.
+       -D <mode>  Like -d, report the closest feature in B, and its distance to
+          A as an extra column. However unlike -d, -D conveys a notion of
+          upstream that is useful with other arguments.
                 The options for defining which orientation is \"upstream\" are:
                 * ref: Report distance with respect to the reference genome.
                        B features with a lower (start, stop) are upstream.
@@ -218,12 +231,23 @@ BEDTOOLS_CLOSEST_DOC <-
                 * b: Report distance with respect to B.
                      When B is on the - strand, \"upstream\" means A has a
                      higher (start,stop).
-       --io  Ignore features in B that overlap A. That is, we want close, yet not touching features only.
-       --iu  Ignore features in B that are upstream of features in A. This option requires -D and follows its orientation rules for determining what is \"upstream\".
-       --id  Ignore features in B that are downstream of features in A. This option requires -D and follows its orientation rules for determining what is \"downstream\".
-       --fu  Choose first from features in B that are upstream of features in A. This option requires -D and follows its orientation rules for determining what is \"upstream\".
-       --fd  Choose first from features in B that are downstream of features in A. This option requires -D and follows its orientation rules for determining what is \"downstream\".
-       -t <mode>  Specify how ties for closest feature should be handled. This occurs when two features in B have exactly the same \"closeness\" with A. By default, all such features in B are reported.
+       --io  Ignore features in B that overlap A. That is, we want close,
+             yet not touching features only.
+       --iu  Ignore features in B that are upstream of features in A. This
+             option requires -D and follows its orientation rules for
+             determining what is \"upstream\".
+       --id  Ignore features in B that are downstream of features in A. This
+             option requires -D and follows its orientation rules for
+             determining what is \"downstream\".
+       --fu  Choose first from features in B that are upstream of features in A.
+             This option requires -D and follows its orientation rules for
+             determining what is \"upstream\".
+       --fd  Choose first from features in B that are downstream of features in
+             A. This option requires -D and follows its orientation rules for
+             determining what is \"downstream\".
+       -t <mode>  Specify how ties for closest feature should be handled. This
+          occurs when two features in B have exactly the same \"closeness\"
+         with A. By default, all such features in B are reported.
                 Here are all the options:
                 * all: Report all ties (default).
                 * first: Report the first tie that occurred in the B file.
@@ -231,9 +255,15 @@ BEDTOOLS_CLOSEST_DOC <-
        --mdb <mode>  Specifiy how multiple databases should be resolved.
                 * each: Report closest records for each database (default).
                 * all: Report closest records among all databases.
-       -k <number>  Report the k closest hits. Default is 1. If tieMode = \"all\", all ties will still be reported.
-       --names <NAME1,...>  When using multiple databases (-b), provide an alias for each that will appear instead of a fileId when also printing the DB record.
-       --filenames  When using multiple databases (-b), show each complete filename instead of a fileId when also printing the DB record.
-       -N  Require that the query and the closest hit have different names. For BED, the 4th column is compared."
+       -k <number>  Report the k closest hits. Default is 1. If
+          tieMode = \"all\", all ties will still be reported.
+       --names <NAME1,...>  When using multiple databases (-b), provide an
+               alias for each that will appear instead of a fileId when also
+               printing the DB record.
+       --filenames  When using multiple databases (-b), show each complete
+                    filename instead of a fileId when also printing the DB
+                    record.
+       -N  Require that the query and the closest hit have different names.
+           For BED, the 4th column is compared."
 
 do_bedtools_closest <- make_do(R_bedtools_closest)

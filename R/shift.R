@@ -54,11 +54,17 @@ BEDTOOLS_SHIFT_DOC <-
        bedtools_shift [options]
      Options:
        -i <FILE,...>  BAM/BED/GFF/VCF files.
-       -s <bp>  Shift the BED/GFF/VCF entry -s base pairs. Integer or Float (e.g. 0.1) if used with -pct.
-       -m <bp>  Shift entries on the - strand -m base pairs. Integer or Float (e.g. 0.1) if used with -pct.
-       -p <bp>  Shift entries on the + strand -p base pairs. Integer or Float (e.g. 0.1) if used with -pct.
-    --pct  Define -l and -r as a fraction of the feature's length. E.g. if used on a 1000bp feature, -l 0.50, will add 500 bp \"upstream\". Default = false.
-       -g <path>  Specify a genome file or identifier that defines the order and size of the sequences.
+       -s <bp>  Shift the BED/GFF/VCF entry -s base pairs.
+                Integer or Float (e.g. 0.1) if used with -pct.
+       -m <bp>  Shift entries on the - strand -m base pairs.
+                Integer or Float (e.g. 0.1) if used with -pct.
+       -p <bp>  Shift entries on the + strand -p base pairs.
+                Integer or Float (e.g. 0.1) if used with -pct.
+    --pct  Define -l and -r as a fraction of the feature's length.
+           E.g. if used on a 1000bp feature, -l 0.50, will add 500 bp
+           \"upstream\". Default = false.
+       -g <path>  Specify a genome file or identifier that defines the
+          order and size of the sequences.
  --header  Print the header from the input file prior to results."
 
 do_bedtools_shift <- make_do(R_bedtools_shift)

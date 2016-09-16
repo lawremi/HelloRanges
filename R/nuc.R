@@ -54,7 +54,8 @@ BEDTOOLS_NUC_DOC <-
      Options:
        --fi <FILE>  FASTA file.
       --bed <FILE>  BED/GFF/BAM/VCF file as query.
-         -s  Force strandedness. If the feature occupies the antisense strand, the sequence will be reverse complemented. [default: FALSE].
+         -s  Force strandedness. If the feature occupies the antisense strand,
+             the sequence will be reverse complemented. [default: FALSE].
   --pattern <PAT>  Report the number of times a user-defined sequence
              is observed (case-sensitive).
 --fullHeader Use full fasta header."

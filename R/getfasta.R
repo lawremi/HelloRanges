@@ -39,7 +39,9 @@ BEDTOOLS_GETFASTA_DOC <-
      Options:
        --fi <FILE>  FASTA file.
       --bed <FILE>  BED/GFF/BAM/VCF file as query.
-         -s  Force strandedness. If the feature occupies the antisense strand, the sequence will be reverse complemented. [default: FALSE].
-    --split  Given BED12 or BAM input, extract and concatenate the sequences from the \"blocks\" (e.g., exons)"
+         -s  Force strandedness. If the feature occupies the antisense strand,
+             the sequence will be reverse complemented. [default: FALSE].
+    --split  Given BED12 or BAM input, extract and concatenate the sequences
+             from the \"blocks\" (e.g., exons)"
 
 do_bedtools_getfasta <- make_do(R_bedtools_getfasta)

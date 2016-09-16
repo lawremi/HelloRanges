@@ -168,10 +168,7 @@ builds. Besides error checking, the bounds are useful when computing
 coverage and finding the gaps (see below). Luckily,
 \software{bedtools} lets us specify the genome as an argument:
 <<intersect-genome>>=
-code <- bedtools_intersect("-a cpg.bed -b exons.bed -g hg19.genome")
-code
-genome <- eval(code[[2L]])
-genome
+bedtools_intersect("-a cpg.bed -b exons.bed -g hg19.genome")
 @ 
 We now have a populated genome, since the tutorial had provided the
 \file{hg19.genome} file. However, in general, information on the
@@ -180,17 +177,11 @@ file. \Bioconductor{} provides \Biocpkg{GenomeInfoDb} as its central
 source of sequence information. We can hook into that by passing the
 genome identifier instead of a file name:
 <<intersect-genome-id>>=
-code <- bedtools_intersect("-a cpg.bed -b exons.bed -g hg19")
-genome <- eval(code[[2L]])
-genome
+bedtools_intersect("-a cpg.bed -b exons.bed -g hg19")
 @ 
 
 \subsection{Annotations}
 
-Now our code looks like:
-<<annotations-review>>=
-code
-@
 The next step is the import of the CpG islands and exons using the
 \Rfunction{import} function from \Biocpkg{rtracklayer}, which can
 load pretty much any kind of genomic data into the appropriate
@@ -217,11 +208,6 @@ exons <- exons(TxDb.Hsapiens.UCSC.hg19.knownGene)
 @ 
 
 \subsection{Finding Overlaps}
-
-A review of the code:
-<<findOverlaps-review>>=
-code
-@ 
 
 The next step is to find all of the overlaps. The workhorse function
 is \Rfunction{findOverlaps} from the \Biocpkg{IRanges} package. Here,
@@ -253,10 +239,6 @@ explicit about how it is treating strand. Users are encouraged to
 follow the same practice.
 
 \subsection{Computing intersections}
-One last look at the code:
-<<findOverlaps-review>>=
-code
-@ 
 
 The final step is to find the actual intersecting region between the
 member of each overlapping pair. We do this with the
@@ -282,12 +264,10 @@ zero width). It's useless in this case.
 \subsection{Keeping the original features}
 
 To keep the original form of the overlapping features, the generated
-code simply neglect to call \Rfunction{pintersect} and end up with the
+code simply neglects to call \Rfunction{pintersect} and ends up with the
 \Robject{pairs} object introduced previously:
 <<intersect-wa-wb>>=
-code <- bedtools_intersect("-a cpg.bed -b exons.bed -g hg19 -wa -wb")
-code
-eval(code)
+bedtools_intersect("-a cpg.bed -b exons.bed -g hg19 -wa -wb")
 @ 
 
 \subsection{Computing the amount of overlap}
@@ -295,9 +275,7 @@ eval(code)
 To compute the width of the overlapping regions, we query the initial
 result for its width and store as an annotation on the pairs:
 <<intersect-wo>>=
-code <- bedtools_intersect("-a cpg.bed -b exons.bed -g hg19 -wo")
-code
-eval(code)
+bedtools_intersect("-a cpg.bed -b exons.bed -g hg19 -wo")
 @ 
 
 This code reveals that \Rclass{GRanges}, along with every other
@@ -312,9 +290,7 @@ A common query, particularly in RNA-seq analysis, is how many ranges
 in the subject overlap each query range. The \Rfunction{countOverlaps}
 function serves this particular purpose:
 <<intersect-c>>=
-code <- bedtools_intersect("-a cpg.bed -b exons.bed -g hg19 -c")
-code
-eval(code)
+bedtools_intersect("-a cpg.bed -b exons.bed -g hg19 -c")
 @ 
 
 \subsection{Excluding queries with overlaps}
@@ -325,8 +301,7 @@ subject range, i.e., any CpG island that overlaps an exon. The
 overlap. By passing \Rcode{invert=TRUE}, we exclude ranges with
 overlaps.
 <<intersect-v>>=
-code <- bedtools_intersect("-a cpg.bed -b exons.bed -g hg19 -v")
-code
+bedtools_intersect("-a cpg.bed -b exons.bed -g hg19 -v")
 @ 
 
 \subsection{Restricting by fraction of overlap}
@@ -336,8 +311,7 @@ overlaps by the fraction of the query/subject range that is
 overlapped. This is not directly supported by the \Bioconductor{}
 infrastructure, but we can filter post-hoc:
 <<intersect-f>>=
-code <- bedtools_intersect("-a cpg.bed -b exons.bed -g hg19 -f 0.5 -wo")
-code
+bedtools_intersect("-a cpg.bed -b exons.bed -g hg19 -f 0.5 -wo")
 @ 
 
 \subsection{Performance}
@@ -399,8 +373,7 @@ ranges into a single range. The corresponding \software{bedtools
 \Rfunction{reduce} does not have this constraint.
 
 <<merge>>=
-code <- bedtools_merge("-i exons.bed")
-code
+bedtools_merge("-i exons.bed")
 @ 
 
 \subsection{Aggregation}
@@ -447,14 +420,12 @@ i.e., the \Robject{min.gapwidth} (the minimum gap allowed to not be
 merged) is 1. To merge features that are up to, say, 1000bp away, we
 need to pass \Rcode{min.gapwidth=1001}:
 <<merge-close>>=
-code <- bedtools_merge("-i exons.bed -d 1000")
-code
+bedtools_merge("-i exons.bed -d 1000")
 @ 
 
 Here is another example showing how to merge multiple columns at once:
 <<merge-multiple>>=
-code <- bedtools_merge("-i exons.bed -d 90 -c 1,4 -o count,collapse")
-code
+bedtools_merge("-i exons.bed -d 90 -c 1,4 -o count,collapse")
 @
 
 \section{Finding the Gaps}
@@ -465,8 +436,7 @@ sequence, i.e., the regions of sequence the track does not cover. This
 is where having the sequence bounds is critical.
 
 <<complement>>=
-code <- bedtools_complement("-i exons.bed -g hg19.genome")
-code
+bedtools_complement("-i exons.bed -g hg19.genome")
 @ 
 
 The call to \Rfunction{setdiff} is a set operation, along with
@@ -498,8 +468,7 @@ consistency with \software{bedtools}, which drops zero runs with the
 ``-bg'' option, we convert the coverage vector to a \Rclass{GRanges}
 and subset:
 <<genomecov-bg>>=
-code <- bedtools_genomecov("-i exons.bed -g hg19.genome -bg")
-code
+bedtools_genomecov("-i exons.bed -g hg19.genome -bg")
 @ 
 
 \subsection{Coverage histogram}
@@ -591,10 +560,7 @@ script. However, there are probably those who are tempted to evaluate
 the code directly, as we have done in this vignette. Further, there
 are those who wish to chain these operations together with the
 so-called ``pipe'' operator, because it would come so tantalizing
-close to the syntax of the shell. We thought it would be entertaining
-to observe people who, while ``living in the moment'', obfuscate their
-code by using both the obscure \software{bedtools} API and
-non-standard syntax. Thus, we created a third family of functions,
+close to the syntax of the shell. Thus, we created a third family of functions,
 prefixed by \Rfunction{do\_}, which provide the same interface as the
 \Rfunction{R\_} family, except they evaluate the generated code:
 <<combine-pipe, eval=FALSE>>=
@@ -602,7 +568,6 @@ do_bedtools_genomecov("exons.bed", g="hg19.genome", bga=TRUE) %>%
     subset(score > 0L) %>%
     do_bedtools_intersect("cpg.bed", .)    
 @ 
-Enjoy.
 
 \subsection{Coalescence}
 
@@ -619,21 +584,14 @@ coverage over all CpG islands.
 We could mimic the example by computing the coverage complete
 histogram and extracting only the margin:
 <<coalescence-naive>>=
-code <- bedtools_coverage("-a cpg.bed -b exons.bed -hist -g hg19.genome")
-code
+bedtools_coverage("-a cpg.bed -b exons.bed -hist -g hg19.genome")
 @ 
 The code is quite complex, because the Ranges infrastructure does
 not attempt to generate high-level summaries of the data. The
 rationale, which is validated in this case, is that the desired
 summary depends on the specific question, and the number of questions
-is effectively infinite.
-
-In this case, we only care about the margin, i.e., the \Robject{all}
-component:
-<<coalescence-all>>=
-ans <- eval(code)
-metadata(ans)$coverage
-@ 
+is effectively infinite. In this case, we only care about the margin,
+i.e., \Rcode{metadata(ans)\$coverage}.
 
 Thus, we can simplify the code. We begin with the same lines:
 <<coalescence-simplify>>=

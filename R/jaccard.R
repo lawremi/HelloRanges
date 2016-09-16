@@ -49,12 +49,17 @@ R_bedtools_jaccard <- function(a, b,
 
     fracRestriction <- have_f || have_F
     if (fracRestriction) {
-        have_f <- .findOverlaps(pairs=TRUE, f, r, e)
+        have_f <- .findOverlaps(.gr_a_o, .gr_b_o, ignore.strand, ret.pairs=TRUE,
+                                f, r, e)
         if (have_f || have_F) {
-            restrictByFraction(f, F, r, e, have_f, have_F, is_grl_a, is_grl_b,
-                               ignore.strand, strict.strand=TRUE)
+            keep <- restrictByFraction(f, F, r, e, have_f, have_F,
+                                       is_grl_a, is_grl_b,
+                                       ignore.strand, strict.strand=TRUE)
+            olap <- quote(olap)
+            .olap <- .R(olap[keep])
+        } else {
+            .olap <- intersectPairs(is_grl_a, is_grl_b, ignore.strand)
         }
-        .olap <- .R(olap[keep])
         if (is_grl_a || is_grl_b)
             .olap <- .R(unlist(.olap))
         R(intersects <- reduce(.olap, ignore.strand=ignore.strand))
@@ -85,15 +90,28 @@ BEDTOOLS_JACCARD_DOC <-
     "Usage:
        bedtools_jaccard [options]
      Options:
-       -a <FILE>  BAM/BED/GFF/VCF file A. Each feature in A is compared to B in search of overlaps. Use 'stdin' if passing A with a UNIX pipe.
-       -b <FILE1,...> One or more BAM/BED/GFF/VCF file(s) B. Use 'stdin' if passing B with a UNIX pipe. -b may be followed with multiple databases and/or wildcard (*) character(s).
+       -a <FILE>  BAM/BED/GFF/VCF file A. Each feature in A is compared to B in
+          search of overlaps. Use 'stdin' if passing A with a UNIX pipe.
+       -b <FILE1,...>  One or more BAM/BED/GFF/VCF file(s) B. Use 'stdin' if
+          passing B with a UNIX pipe. -b may be followed with multiple
+          databases and/or wildcard (*) character(s).
        -f <frac>  Minimum overlap required as a fraction of A [default: 1e-9].
        -F <frac>  Minimum overlap required as a fraction of B [default: 1e-9].
-       -r  Require that the fraction of overlap be reciprocal for A and B. In other words, if -f is 0.90 and -r is used, this requires that B overlap at least 90% of A and that A also overlaps at least 90% of B.
-       -e  Require that the minimum fraction be satisfied for A _OR_ B. In other words, if -e is used with -f 0.90 and -F 0.10 this requires that either 90% of A is covered OR 10% of B is covered. Without -e, both fractions would have to be satisfied.
-       -s  Force strandedness. That is, only report hits in B that overlap A on the same strand. By default, overlaps are reported without respect to strand.
-       -S  Require different strandedness. That is, only report hits in B that overlap A on the _opposite_ strand. By default, overlaps are reported without respect to strand.
-       --split  Treat split BAM (i.e., having an 'N' CIGAR operation) or BED12 entries as distinct BED intervals.
+       -r  Require that the fraction of overlap be reciprocal for A and B.
+           In other words, if -f is 0.90 and -r is used, this requires that B
+           overlap at least 90% of A and that A also overlaps at least 90% of B.
+       -e  Require that the minimum fraction be satisfied for A _OR_ B. In
+           other words, if -e is used with -f 0.90 and -F 0.10 this requires
+           that either 90% of A is covered OR 10% of B is covered. Without -e,
+           both fractions would have to be satisfied.
+       -s  Force strandedness. That is, only report hits in B that overlap A on
+           the same strand. By default, overlaps are reported without respect
+           to strand.
+       -S  Require different strandedness. That is, only report hits in B that
+           overlap A on the _opposite_ strand. By default, overlaps are
+           reported without respect to strand.
+       --split  Treat split BAM (i.e., having an 'N' CIGAR operation) or BED12
+                entries as distinct BED intervals.
 "
 
 do_bedtools_jaccard <- make_do(R_bedtools_jaccard)

@@ -15,7 +15,8 @@ R_bedtools_coverage <- function(a, b, hist=FALSE, d=FALSE, counts=FALSE,
                                 sortout=FALSE)
 {
     stopifnot(isSingleString(a) || hasRanges(a),
-              (is.character(b) && !anyNA(b) && length(b) >= 1L) || hasRanges(b),
+              (is.character(b) && !anyNA(b) && length(b) >= 1L) ||
+                  hasRanges(b),
               isTRUEorFALSE(hist),
               isTRUEorFALSE(d),
               isTRUEorFALSE(counts), !(d && counts), !(hist && (d || counts)),
@@ -73,11 +74,12 @@ R_bedtools_coverage <- function(a, b, hist=FALSE, d=FALSE, counts=FALSE,
                                     strand(.gr_a_o))))
         }
     } else {
-        have_f <- .findOverlaps(f, r, e, pairs=FALSE)
+        have_f <- .findOverlaps(.gr_a_o, .gr_b_o, ignore.strand, f, r, e,
+                                ret.pairs=FALSE)
         R(pairs <- Pairs(.gr_a_o, .gr_b_o, hits=hits))
         if (have_f || have_F) {
-            restrictByFraction(f, F, r, e, have_f, have_F, FALSE, is_grl_b,
-                               ignore.strand)
+            keep <- restrictByFraction(f, F, r, e, have_f, have_F,
+                                       FALSE, is_grl_b, ignore.strand)
             R(hits <- hits[keep])
             if (counts) {
                 R(ans <- .gr_a)
@@ -129,8 +131,11 @@ BEDTOOLS_COVERAGE_DOC <-
     "Usage:
        bedtools_coverage [options]
      Options:
-       -a <FILE>  BAM/BED/GFF/VCF file A. Each feature in A is compared to B in search of overlaps. Use 'stdin' if passing A with a UNIX pipe.
-       -b <FILE1,...>  One or more BAM/BED/GFF/VCF file(s) B. Use 'stdin' if passing B with a UNIX pipe. -b may be followed with multiple databases and/or wildcard (*) character(s).
+       -a <FILE>  BAM/BED/GFF/VCF file A. Each feature in A is compared to B
+          in search of overlaps. Use 'stdin' if passing A with a UNIX pipe.
+       -b <FILE1,...>  One or more BAM/BED/GFF/VCF file(s) B. Use 'stdin' if
+          passing B with a UNIX pipe. -b may be followed with multiple
+          databases and/or wildcard (*) character(s).
    --hist  Report a histogram of coverage for each feature in A as well as a
            summary histogram for _all_ features in A.
            Output (tab delimited) after each feature in A:
@@ -145,13 +150,25 @@ BEDTOOLS_COVERAGE_DOC <-
            Restricted by -f and -r.
        -f <frac>  Minimum overlap required as a fraction of A [default: 1e-9].
        -F <frac>  Minimum overlap required as a fraction of B [default: 1e-9].
-       -r  Require that the fraction of overlap be reciprocal for A and B. In other words, if -f is 0.90 and -r is used, this requires that B overlap at least 90% of A and that A also overlaps at least 90% of B.
-       -e  Require that the minimum fraction be satisfied for A _OR_ B. In other words, if -e is used with -f 0.90 and -F 0.10 this requires that either 90% of A is covered OR 10% of B is covered. Without -e, both fractions would have to be satisfied.
-       -s  Force strandedness. That is, only report hits in B that overlap A on the same strand. By default, overlaps are reported without respect to strand.
-       -S  Require different strandedness. That is, only report hits in B that overlap A on the _opposite_ strand. By default, overlaps are reported without respect to strand.
-       --split  Treat split BAM (i.e., having an 'N' CIGAR operation) or BED12 entries as distinct BED intervals.
-       -g <path>  Specify a genome file or identifier that defines the order and size of the sequences.
-       --sortout  When using multiple databases (-b), sort the output DB hits for each record.
+       -r  Require that the fraction of overlap be reciprocal for A and B.
+           In other words, if -f is 0.90 and -r is used, this requires that B
+           overlap at least 90% of A and A also overlaps at least 90% of B.
+       -e  Require that the minimum fraction be satisfied for A _OR_ B. In
+           other words, if -e is used with -f 0.90 and -F 0.10 this requires
+           that either 90% of A is covered OR 10% of B is covered. Without -e,
+           both fractions would have to be satisfied.
+       -s  Force strandedness. That is, only report hits in B that overlap A on
+           the same strand. By default, overlaps are reported without respect
+           to strand.
+       -S  Require different strandedness. That is, only report hits in B that
+           overlap A on the _opposite_ strand. By default, overlaps are
+           reported without respect to strand.
+       --split  Treat split BAM (i.e., having an 'N' CIGAR operation) or BED12
+                entries as distinct BED intervals.
+       -g <path>  Specify a genome file or identifier that defines the order
+                  and size of the sequences.
+       --sortout  When using multiple databases (-b), sort the output DB hits
+                  for each record.
 "
 
 do_bedtools_coverage <- make_do(R_bedtools_coverage)

@@ -59,12 +59,18 @@ BEDTOOLS_FLANK_DOC <-
        bedtools_flank [options]
      Options:
        -i <FILE,...>  BAM/BED/GFF/VCF files.
-       -b <size>  Increase the BED/GFF/VCF entry by the same number base pairs in each direction. Integer.
-       -l <size> The number of base pairs to subtract from the start coordinate. Integer.
-       -r <size> The number of base pairs to add to the end coordinate. Integer.
-       -s  Define -l and -r based on strand. For example. if used, -l 500 for a negative-stranded feature, it will add 500 bp to the end coordinate.
-    --pct  Define -l and -r as a fraction of the feature's length. E.g. if used on a 1000bp feature, -l 0.50, will add 500 bp \"upstream\". Default = false.
-       -g <path>  Specify a genome file or identifier that defines the order and size of the sequences.
+       -b <size>  Increase the BED/GFF/VCF entry by the same number base pairs
+          in each direction. Integer.
+       -l <size>  Number of base pairs to subtract from the start coordinate.
+                 Integer.
+       -r <size>  Number of base pairs to add to the end coordinate. Integer.
+       -s  Define -l and -r based on strand. For example. if used, -l 500 for a
+           negative-stranded feature, it will add 500 bp to the end coordinate.
+    --pct  Define -l and -r as a fraction of the feature's length. E.g. if used
+           on a 1000bp feature, -l 0.50, will add 500 bp \"upstream\".
+           Default = false.
+       -g <path>  Specify a genome file or identifier that defines the order
+          and size of the sequences.
  --header  Print the header from the input file prior to results."
 
 do_bedtools_flank <- make_do(R_bedtools_flank)

@@ -14,3 +14,13 @@ importFrom(rtracklayer, import, path)
 
 exportPattern("(R_)?bedtools_.*")
 export(pair, distmode)
+
+## Called by the compiled code, not HelloRanges itself
+## We could have these in globalVariables(), but this is more useful.
+
+importFrom(Biostrings, readDNAStringSet, letterFrequency, alphabetFrequency,
+           vcountPattern)
+importFrom(rtracklayer, asBED, BEDFile)
+importFrom(Rsamtools, ScanBamParam)
+importFrom(GenomeInfoDb, seqlengths)
+importFrom(SummarizedExperiment, SummarizedExperiment)

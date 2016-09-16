@@ -26,6 +26,7 @@ BEDTOOLS_COMPLEMENT_DOC <-
        bedtools_complement [options]
      Options:
        -i <FILE>  BAM/BED/GFF/VCF file.
-       -g <path>  Specify a genome file or identifier that defines the order and size of the sequences."
+       -g <path>  Specify a genome file or identifier that defines the order
+          and size of the sequences."
 
 do_bedtools_complement <- make_do(R_bedtools_complement)
