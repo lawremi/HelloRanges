@@ -1,0 +1,26 @@
+import(methods)
+import(BiocGenerics)
+import(S4Vectors)
+import(IRanges)
+import(GenomicRanges)
+import(docopt)
+
+importFrom(tools, file_ext, file_path_sans_ext)
+importFrom(stats, as.formula, setNames)
+importFrom(utils, read.table)
+
+importFrom(GenomeInfoDb, Seqinfo, seqlevels, "seqlevels<-")
+importFrom(rtracklayer, import, path)
+
+exportPattern("(R_)?bedtools_.*")
+export(pair, distmode)
+
+## Called by the compiled code, not HelloRanges itself
+## We could have these in globalVariables(), but this is more useful.
+
+importFrom(Biostrings, readDNAStringSet, letterFrequency, alphabetFrequency,
+           vcountPattern)
+importFrom(rtracklayer, asBED, BEDFile)
+importFrom(Rsamtools, ScanBamParam)
+importFrom(GenomeInfoDb, seqlengths)
+importFrom(SummarizedExperiment, SummarizedExperiment)
