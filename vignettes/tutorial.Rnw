@@ -659,7 +659,7 @@ files <- Sys.glob("*.merge.bed")
 names(files) <- sub("\\..*", "", files)
 ans <- outer(files, files, 
              function(a, b) mcmapply(do_bedtools_jaccard, a, b, 
-                                     mc.cores=4))
+                                     mc.cores=min(detectCores(), 4)))
 jaccard <- apply(ans, 1:2, function(x) x[[1]]$jaccard)
 @ 
 
