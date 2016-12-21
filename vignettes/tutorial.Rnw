@@ -657,9 +657,10 @@ custom python script, and repeatedly call perl and awk.
 <<jaccard-all>>=
 files <- Sys.glob("*.merge.bed")
 names(files) <- sub("\\..*", "", files)
+ncores <- min(parallel::detectCores(), 4L)
 ans <- outer(files, files, 
              function(a, b) mcmapply(do_bedtools_jaccard, a, b, 
-                                     mc.cores=min(detectCores(), 4)))
+                                     mc.cores=ncores))
 jaccard <- apply(ans, 1:2, function(x) x[[1]]$jaccard)
 @ 
 
