@@ -657,7 +657,7 @@ custom python script, and repeatedly call perl and awk.
 <<jaccard-all>>=
 files <- Sys.glob("*.merge.bed")
 names(files) <- sub("\\..*", "", files)
-ncores <- min(parallel::detectCores(), 4L)
+ncores <- if (.Platform$OS.type == "windows") 1L else 4L
 ans <- outer(files, files, 
              function(a, b) mcmapply(do_bedtools_jaccard, a, b, 
                                      mc.cores=ncores))
@@ -757,9 +757,8 @@ mean(gwas %over% exons)
 @   
 \item 
 <<answer-6>>=
-bedtools_flank("-l 2 -r 2 -i exons.bed -g genome.txt")
+bedtools_flank("-l 2 -r 2 -i exons.bed -g hg19.genome")
 ## or, bonus:
-exons <- keepStandardChromosomes(exons)
 txid <- sub("_exon.*", "", exons$name)
 tx <- split(exons, txid)
 bounds <- range(tx)
