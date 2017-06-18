@@ -1,7 +1,7 @@
 Package: HelloRanges
 Type: Package
 Title: Introduce *Ranges to bedtools users
-Version: 1.3.0
+Version: 1.3.1
 Author: Michael Lawrence
 Maintainer: Michael Lawrence <michafla@gene.com>
 Description: Translates bedtools command-line invocations to R code
@@ -11,7 +11,7 @@ Description: Translates bedtools command-line invocations to R code
 License: GPL (>= 2)
 Imports: docopt, stats, tools, utils
 Depends: methods, BiocGenerics, S4Vectors (>= 0.11.6), IRanges (>=
-        2.7.11), GenomicRanges (>= 1.27.1), Biostrings (>= 2.41.3),
+        2.7.11), GenomicRanges (>= 1.29.6), Biostrings (>= 2.41.3),
         BSgenome, GenomicFeatures, VariantAnnotation (>= 1.19.3),
         Rsamtools, GenomicAlignments, rtracklayer (>= 1.33.8),
         GenomeInfoDb, SummarizedExperiment

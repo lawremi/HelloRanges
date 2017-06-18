@@ -135,7 +135,7 @@ isBam <- function(x) {
 }
 
 isBed <- function(x) {
-    hasFormat(x, "bed") || is(x, "GenomicRangesORGRangesList")
+    hasFormat(x, "bed") || is(x, "GenomicRanges_OR_GRangesList")
 }
 
 isVcf <- function(x) {
