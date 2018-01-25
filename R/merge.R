@@ -31,8 +31,8 @@ EXPRS_FOR_OPS <- list(
     count_distinct=quote(lengths(unique(X))),
     sstdev=quote(sd(X)),
     freq=quote(table(X)),
-    first=quote(drop(phead(X, 1L))),
-    last=quote(drop(ptail(X, 1L)))
+    first=quote(drop(heads(X, 1L))),
+    last=quote(drop(tails(X, 1L)))
 )
 
 normCandO <- function(i, c, o, delim = ",") {

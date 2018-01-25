@@ -93,8 +93,8 @@
     \item{count_distinct}{\code{lengths(unique(X))}}
     \item{sstdev}{\code{sd(X)}}
     \code{freq}{\code{table(X)}}
-    \code{first}{\code{drop(phead(X, 1L))}}
-    \code{last}{\code{drop(ptail(X, 1L))}}
+    \code{first}{\code{drop(heads(X, 1L))}}
+    \code{last}{\code{drop(tails(X, 1L))}}
   }
 
   For the sake of simplicity, and because the use cases are not clear,
