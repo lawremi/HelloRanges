@@ -21,7 +21,7 @@ test_subtract <- function() {
     r <- bedtools_subtract("-a a.bed -b b.bed -f 0.1")
     checkIdentical(exp, eval(r))
 
-    exp <- as(granges(a), "List")
+    exp <- unname(split(granges(a), seq_along(a)))
     r <- bedtools_subtract("-a a.bed -b b.bed -f 0.5")
     checkIdentical(exp, eval(r))
 
