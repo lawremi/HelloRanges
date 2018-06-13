@@ -104,11 +104,12 @@ test_intersect <- function() {
     three_blocks_match <- import("three_blocks_match.bed")
     d <- import("d.bed")
     p <- Pairs(three_blocks_match, d)
-    mcols(p)$overlap_width <- 5L
+    mcols(p)$overlap_width <- c(three_blocks_match=5L)
     r <- bedtools_intersect("-a three_blocks_match.bed -b d.bed -split -wo")
     checkIdentical(p, eval(r))
 
     first(p) <- asBED(three_blocks_exp)
+    mcols(p)$overlap_width <- unname(mcols(p)$overlap_width)
     r <- bedtools_intersect("-a three_blocks.bam -b d.bed -split -wo -bed")
     checkIdentical(p, eval(r))
     
