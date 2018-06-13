@@ -73,7 +73,7 @@ do_bedtools_shift(i, s = 0, m = 0, p = 0, pct = FALSE, g = NULL, header = FALSE)
   }
 
   This is a fairly straight-forward application of
-  \code{\link[GenomicRanges]{shift}}.
+  \code{\link[IRanges]{shift}}.
 }
 \value{
   A language object containing the compiled \R{} code, evaluating to a
