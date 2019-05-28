@@ -22,6 +22,7 @@ test_unionbedg <- function() {
     checkEquals(exp, eval(r))
 
     colnames(exp) <- c("A", "B", "C")
+    colnames(assay(exp)) <- colnames(exp)
     r <- bedtools_unionbedg("-i a.bedGraph,b.bedGraph,c.bedGraph -names A,B,C")
     checkEquals(exp, eval(r))
 
