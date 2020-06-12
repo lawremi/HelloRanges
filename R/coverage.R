@@ -27,7 +27,7 @@ R_bedtools_coverage <- function(a, b, hist=FALSE, d=FALSE, counts=FALSE,
               isTRUEorFALSE(s),
               isTRUEorFALSE(S), !(s && S),
               isTRUEorFALSE(split),
-              isSingleStringOrNA(g),
+              isGenome(g),
               isTRUEorFALSE(header),
               isTRUEorFALSE(sortout))
 

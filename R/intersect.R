@@ -190,6 +190,10 @@ objectName <- function(x) {
             vcf_x = as.name(paste0("vcf_", label)))))
 }
 
+isGenome <- function(g) {
+    isSingleStringOrNA(g) || is(g, "Seqinfo")
+}
+
 importGenome <- function(g) {
     if (is(g, "Seqinfo")) {
         .g <- evalq(match.call()$g, parent.frame())
@@ -319,7 +323,7 @@ R_bedtools_intersect <- function(a, b, ubam=FALSE, bed=FALSE,
               isTRUEorFALSE(s),
               isTRUEorFALSE(S), !(s && S),
               isTRUEorFALSE(split),
-              isSingleStringOrNA(g),
+              isGenome(g),
               isTRUEorFALSE(header),
               isTRUEorFALSE(filenames),
               isTRUEorFALSE(sortout))

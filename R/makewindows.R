@@ -13,7 +13,7 @@ bedtools_makewindows <- function(cmd = "--help") {
 R_bedtools_makewindows <- function(b, g = NA_character_, w, s, n)
 {
     stopifnot(missing(b) || isSingleString(b) || hasRanges(b),
-              isSingleStringOrNA(g), !(missing(b) && missing(g)),
+              isGenome(g), !(missing(b) && missing(g)),
               missing(w) || isSingleString(w),
               missing(s) || isSingleString(s),
               missing(n) || (isSingleString(n) && missing(w) && missing(s)))

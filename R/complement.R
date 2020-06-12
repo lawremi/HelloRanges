@@ -9,7 +9,7 @@ bedtools_complement <- function(cmd = "--help") {
 
 R_bedtools_complement <- function(i, g) {
     stopifnot(isSingleString(i) || hasRanges(i),
-              isSingleString(g))
+              isGenome(g))
 
     importGenome(g)
 

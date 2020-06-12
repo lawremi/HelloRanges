@@ -15,7 +15,9 @@ R_bedtools_shift <- function(i, s = 0, m = 0, p = 0,
               isSingleNumber(m),
               isSingleNumber(p),
               xor(!(missing(m) && missing(p)), !missing(s)),
-              isTRUEorFALSE(pct))
+              isTRUEorFALSE(pct),
+              isGenome(g),
+              isTRUEorFALSE(header))
     
     importGenome(g)
     

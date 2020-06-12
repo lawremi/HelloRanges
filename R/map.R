@@ -26,7 +26,7 @@ R_bedtools_map <- function(a, b, c="5", o="sum",
               isTRUEorFALSE(s),
               isTRUEorFALSE(S), !(s && S),
               isTRUEorFALSE(split),
-              isSingleStringOrNA(g),
+              isGenome(g),
               isTRUEorFALSE(header),
               isSingleString(delim))
 

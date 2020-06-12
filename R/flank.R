@@ -16,7 +16,9 @@ R_bedtools_flank <- function(i, b = 0, l = 0, r = 0, s = FALSE,
               isSingleNumber(r), r >= 0L,
               xor(!(missing(l) && missing(r)), !missing(b)),
               isTRUEorFALSE(s), !(s && b),
-              isTRUEorFALSE(pct))
+              isTRUEorFALSE(pct),
+              isGenome(g),
+              isTRUEorFALSE(header))
     
     importGenome(g)
     

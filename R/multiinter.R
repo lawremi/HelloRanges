@@ -12,7 +12,7 @@ bedtools_multiinter <- function(cmd = "--help") {
 {
     stopifnot((is.character(i) && !anyNA(i) && length(i) >= 1L) || hasRanges(i),
               isTRUEorFALSE(header),
-              isSingleStringOrNA(g),
+              isGenome(g),
               isTRUEorFALSE(empty),
               isTRUEorFALSE(use.score))
 

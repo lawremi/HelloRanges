@@ -22,7 +22,7 @@ R_bedtools_subtract <- function(a, b,
               isTRUEorFALSE(S), !(s && S),
               isTRUEorFALSE(A),
               isTRUEorFALSE(N), !(N && A),
-              isSingleStringOrNA(g))
+              isGenome(g))
 
     importGenome(g)
     

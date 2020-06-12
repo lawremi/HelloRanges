@@ -18,7 +18,7 @@ R_bedtools_genomecov <- function(i, g=NA_character_,
     fs <- if (!is.null(fs)) as.integer(fs)
     
     stopifnot(isSingleString(i) || hasRanges(i),
-              isSingleStringOrNA(g),
+              isGenome(g),
               isTRUEorFALSE(d),
               isTRUEorFALSE(dz),
               isTRUEorFALSE(bg),
