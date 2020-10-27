@@ -1,7 +1,7 @@
 Package: HelloRanges
 Type: Package
 Title: Introduce *Ranges to bedtools users
-Version: 1.15.1
+Version: 1.16.0
 Author: Michael Lawrence
 Maintainer: Michael Lawrence <michafla@gene.com>
 Description: Translates bedtools command-line invocations to R code
