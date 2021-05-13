@@ -73,10 +73,10 @@ setMethod("import", "GenomeFile", function (con, format, text, ...) {
 
 makeNAColumn <- function(x) {
 ### FIXME: extractROWS() should support NA subscripts, but oh well
-    if (is(x, "Rle"))
+    if (wasRle <- is(x, "Rle"))
         x <- decode(x)
     ans <- x[NA_integer_]
-    if (is(x, "Rle"))
+    if (wasRle)
         ans <- Rle(ans)
     ans
 }
