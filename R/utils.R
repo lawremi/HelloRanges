@@ -52,7 +52,7 @@ getR <- function(env) {
 ### Genome file handling
 ###
 
-setClass("GenomeFile", contains="RTLFile")
+setClass("GenomeFile", contains="BiocFile")
 
 GenomeFile <- function(resource) {
     new("GenomeFile", resource=resource)

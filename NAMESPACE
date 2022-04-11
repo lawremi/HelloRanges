@@ -4,6 +4,7 @@ import(S4Vectors)
 import(IRanges)
 import(GenomicRanges)
 import(docopt)
+import(BiocIO)
 
 importFrom(tools, file_ext, file_path_sans_ext)
 importFrom(stats, as.formula, setNames)
