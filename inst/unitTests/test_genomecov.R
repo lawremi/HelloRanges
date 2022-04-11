@@ -44,7 +44,7 @@ test_genomecov <- function() {
     r <- bedtools_genomecov("-i sam-w-del.bam -bg -split")
     checkIdentical(exp, eval(r))
 
-    exp <- DataFrame(seqnames=Rle(c("1", "2", "3", "genome"),
+    exp <- DataFrame(seqnames=Rle(factor(c("1", "2", "3", "genome")),
                                   c(3L, 1L, 1L, 3L)),
                      coverage = factor(c(0:2, 0, 0, 0:2)),
                      count = c(93, 4, 3, rep(100, 2), 293, 4, 3),
