@@ -14,7 +14,7 @@ Depends: methods, BiocGenerics, S4Vectors (>= 0.17.39), IRanges (>=
         2.13.12), GenomicRanges (>= 1.31.10), Biostrings (>= 2.41.3),
         BSgenome, GenomicFeatures (>= 1.31.5), VariantAnnotation (>= 1.19.3),
         Rsamtools, GenomicAlignments (>= 1.15.7), rtracklayer (>= 1.33.8),
-        GenomeInfoDb, SummarizedExperiment
+        GenomeInfoDb, SummarizedExperiment, BiocIO
 Suggests: HelloRangesData, BiocStyle
 biocViews: Sequencing, Annotation, Coverage, GenomeAnnotation,
         DataImport, SequenceMatching, VariantAnnotation

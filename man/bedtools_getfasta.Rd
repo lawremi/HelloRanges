@@ -69,7 +69,7 @@
     Bioconductor. Call \code{\link[Biostrings]{getSeq}} to query for
     specific regions of the BSgenome object. If one must access a file,
     consider converting it to 2bit or FA (razip) format for indexed
-    access using \code{\link[rtracklayer]{import}} and its \code{which}
+    access using \code{\link[BiocIO]{import}} and its \code{which}
     argument.
 
     But if one must access a FASTA file, we need to read all of it with
